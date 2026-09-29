@@ -1,0 +1,13 @@
+{
+  "name": "tasmota-manager",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm --filter @tm/web build && pnpm --filter @tm/server build",
+    "dev:server": "TM_DATA_DIR=.data pnpm --filter @tm/server dev",
+    "dev:web": "pnpm --filter @tm/web dev"
+  },
+  "engines": { "node": ">=22.12" }
+}
