@@ -263,5 +263,10 @@ function toDevice(row: DeviceRow, tagNames: string[]): Device {
     lastSeen: row.lastSeen,
     hasPasswordOverride: Boolean(row.passwordOverride),
     tags: tagNames,
+    setOption4: false,
+    ha: null,
+    nameSuggestion: null,
+    pendingCount: 0,
+    pendingName: null,
   };
 }

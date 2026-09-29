@@ -21,6 +21,11 @@ export function makeDevice(partial: Partial<Device> = {}): Device {
     lastSeen: '2026-09-29T12:00:00.000Z',
     hasPasswordOverride: false,
     tags: [],
+    setOption4: false,
+    ha: null,
+    nameSuggestion: null,
+    pendingCount: 0,
+    pendingName: null,
     ...partial,
   };
 }

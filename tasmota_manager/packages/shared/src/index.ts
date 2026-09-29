@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import type { Timer } from './catalog';
+
+export * from './catalog';
 
 export const ChannelSchema = z.enum(['mqtt', 'http']);
 export type Channel = z.infer<typeof ChannelSchema>;
@@ -17,6 +20,14 @@ export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
 
 export const MqttStatusSchema = z.enum(['disabled', 'connecting', 'connected', 'disconnected']);
 export type MqttStatus = z.infer<typeof MqttStatusSchema>;
+
+export const HaLinkSchema = z.object({
+  deviceId: z.string(),
+  areaName: z.string().nullable(),
+  entities: z.array(z.object({ entityId: z.string(), name: z.string() })),
+  automations: z.array(z.object({ id: z.string().nullable(), entityId: z.string(), name: z.string() })),
+});
+export type HaLink = z.infer<typeof HaLinkSchema>;
 
 export const DeviceSchema = z.object({
   id: z.string(),
@@ -38,6 +49,11 @@ export const DeviceSchema = z.object({
   lastSeen: z.string().nullable(),
   hasPasswordOverride: z.boolean(),
   tags: z.array(z.string()),
+  setOption4: z.boolean(),
+  ha: HaLinkSchema.nullable(),
+  nameSuggestion: z.string().nullable(),
+  pendingCount: z.number(),
+  pendingName: z.string().nullable(),
 });
 export type Device = z.infer<typeof DeviceSchema>;
 export type DeviceDetail = Device & { status: unknown };
@@ -78,7 +94,10 @@ export function intToIp(n: number): string {
 export const CidrSchema = z
   .string()
   .trim()
-  .refine((v) => (parseCidr(v)?.prefix ?? 0) >= MAX_SCAN_PREFIX, { message: 'invalid_cidr' });
+  .refine((v) => (parseCidr(v)?.prefix ?? 0) >= MAX_SCAN_PREFIX, {
+    message:
+      'Ungültiger Bereich oder größer als /20 (höchstens 4096 Adressen). Trage genutzte Subnetze einzeln ein, z. B. 10.0.1.0/24.',
+  });
 
 export const ConcurrencySchema = z.object({
   command: z.int().min(1).max(50),
@@ -116,11 +135,90 @@ export interface ScanProgress {
 export type WsMessage =
   | { type: 'device:updated'; device: Device }
   | { type: 'device:removed'; id: string }
+  | { type: 'devices:stale' }
   | { type: 'mqtt:status'; status: MqttStatus }
   | ({ type: 'scan:progress' } & ScanProgress)
-  | { type: 'scan:done'; found: number };
+  | { type: 'scan:done'; found: number }
+  | { type: 'changes:updated'; count: number }
+  | { type: 'job:progress'; jobId: number; item: JobItem }
+  | { type: 'job:done'; job: JobView };
 
 export interface ApiErrorBody {
   code: string;
   message: string;
+}
+
+export const ChangeSourceSchema = z.enum(['suggestion', 'form', 'command', 'detail', 'rule', 'timer']);
+export type ChangeSource = z.infer<typeof ChangeSourceSchema>;
+
+export interface PendingChange {
+  id: number;
+  deviceId: string;
+  kind: 'setting' | 'command';
+  key: string | null;
+  /** write-only-Werte als „••••" */
+  value: string;
+  /** Aktueller Gerätewert, soweit bekannt */
+  before: string | null;
+  source: ChangeSource;
+  error: string | null;
+  updatedAt: string;
+}
+
+export interface PendingDevice {
+  deviceId: string;
+  deviceName: string;
+  changes: PendingChange[];
+}
+
+export const StageRequestSchema = z
+  .object({
+    deviceIds: z.array(z.string().min(1)).min(1).max(500),
+    settings: z.record(z.string(), z.string()).optional(),
+    commands: z.array(z.string().trim().min(1).max(512)).max(50).optional(),
+    source: ChangeSourceSchema,
+  })
+  .refine((b) => Object.keys(b.settings ?? {}).length > 0 || (b.commands?.length ?? 0) > 0, {
+    message: 'Keine Änderungen angegeben',
+  });
+export type StageRequest = z.infer<typeof StageRequestSchema>;
+
+export interface StageResult {
+  staged: number;
+  skipped: number;
+}
+
+export const DeviceIdsRequestSchema = z.object({ deviceIds: z.array(z.string().min(1)).min(1).max(500) });
+export const ApplyRequestSchema = z.object({ deviceIds: z.array(z.string().min(1)).max(500).optional() });
+
+export type JobItemStatus = 'pending' | 'running' | 'success' | 'failed';
+export type JobStep = 'write' | 'restart' | 'verify';
+
+export interface JobItem {
+  deviceId: string;
+  deviceName: string;
+  status: JobItemStatus;
+  step: JobStep | null;
+  error: string | null;
+}
+
+export interface JobView {
+  id: number;
+  status: 'running' | 'done';
+  createdAt: string;
+  finishedAt: string | null;
+  items: JobItem[];
+}
+
+export interface RuleState {
+  index: number;
+  enabled: boolean;
+  text: string;
+  length: number;
+  free: number;
+}
+
+export interface TimersState {
+  enabled: boolean;
+  timers: Timer[];
 }
