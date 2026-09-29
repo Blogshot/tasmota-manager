@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { selectClass } from '@/lib/styles';
 import { AddDeviceDialog } from './AddDeviceDialog';
+import { DeviceSheet } from './DeviceSheet';
 import { DeviceTable } from './DeviceTable';
 import { type StatusFilter, filterDevices } from './filter';
 import { ScanButton } from './ScanButton';
@@ -72,7 +73,7 @@ export function DevicesPage() {
       ) : (
         <DeviceTable devices={visible} rowSelection={rowSelection} onRowSelectionChange={setRowSelection} onOpen={setOpenId} />
       )}
-      <span hidden data-open-device={openId ?? ''} />
+      <DeviceSheet deviceId={openId} onClose={() => setOpenId(null)} onSwitch={setOpenId} />
     </div>
   );
 }
