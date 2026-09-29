@@ -63,7 +63,7 @@ Die Einstellungen sind fest definiert: Die Definitionen stehen in `packages/serv
 | Standort | `Latitude`, `Longitude` | nötig für Timer mit Sonnenstand |
 | Zeit | `Timezone`, `NtpServer1` | |
 | Telemetrie | `TelePeriod` (10–3600) | |
-| MQTT | `MqttHost`, `MqttPort`, `MqttUser`, `MqttPassword` (writeOnly) | werden pro Gerät **zuletzt** geschrieben, lösen einen Neustart aus |
+| MQTT | `MqttHost`, `MqttPort`, `MqttUser`, `MqttPassword` (writeOnly) | lösen einen Neustart aus, werden pro Gerät zuletzt und gebündelt in einem `Backlog` geschrieben (Abschnitt 5) |
 
 **Weitere Puffer-Schlüssel außerhalb des Formulars:**
 
@@ -113,14 +113,26 @@ Die Einstellungen sind fest definiert: Die Definitionen stehen in `packages/serv
 
 **Batch-Ausführung pro Gerät:**
 
-- Die Parallelität richtet sich nach `settings.concurrency.command`.
-- Pro Gerät laufen die Schritte streng nacheinander:
-  1. Einstellungen in `order`-Reihenfolge schreiben, außer MQTT.
-  2. Rules und Timer schreiben.
-  3. Befehle in ihrer Reihenfolge ausführen.
-  4. Zuletzt die MQTT-Einstellungen schreiben.
-- Nach Einträgen mit `restarts` wartet der Job, bis das Gerät wieder online ist (Timeout 90 s).
-- Am Ende werden alle nicht-writeOnly-Einstellungen, Rules und Timer zurückgelesen (Verify). Nach MQTT-Änderungen geschieht das per HTTP, falls die IP bekannt ist, sonst entfällt es mit einem Hinweis.
+Die Parallelität richtet sich nach `settings.concurrency.command`. Pro Gerät laufen die Schritte streng nacheinander:
+
+1. **Einstellungen ohne Neustart:** einzeln in `order`-Reihenfolge, jede mit eigenem Ergebnis.
+2. **Rules und Timer:** einzeln geschrieben.
+3. **Freie Befehle:** in ihrer Reihenfolge. Nach einem bekannten Neustart-Befehl wartet der Job auf den Neustart, bevor der nächste Befehl folgt.
+4. **Einstellungen mit Neustart** (`restarts`, derzeit die MQTT-Gruppe): alle zusammen in **einem** `Backlog`, danach auf den Neustart warten. So startet das Gerät pro Batch nur einmal neu. Einzelergebnisse gibt es dabei nicht (Backlog meldet nur „Done“), die Prüfung übernimmt Schritt 5.
+5. **Verify:** Alle nicht-writeOnly-Einstellungen, Rules und Timer werden zurückgelesen und verglichen. Nach MQTT-Änderungen geschieht das per HTTP, falls die IP bekannt ist, sonst entfällt es mit einem Hinweis.
+
+**Bekannte Neustart-Befehle** (gepflegte Liste im Code): `Restart`, `Module`, `Template` (mit Aktivierung), `Topic`, `FullTopic`, `GroupTopic`, `Hostname`, `WifiConfig`, `SSId1`/`SSId2`, `Password1`/`Password2`, `IPAddress1`–`4`, `MqttHost`, `MqttPort`, `MqttUser`, `MqttPassword`, `MqttClient`, `Reset` und `Upgrade`.
+
+**Neustart erkennen:**
+
+- Vor dem auslösenden Befehl merkt sich der Job `UptimeSec` des Geräts.
+- Danach fragt er über den verfügbaren Kanal `Status 11` ab und zählt den Neustart erst dann als erfolgt, wenn die gemeldete Laufzeit **kleiner** als der gemerkte Wert ist. Der bloße Online-Status reicht nicht, weil Tasmota erst ein bis zwei Sekunden nach dem Befehl neu startet.
+- Bei MQTT gilt die Folge LWT „Offline“ → „Online“ zusätzlich als Signal.
+- Timeout: 90 s.
+
+**Unerwartete Neustarts:** Löst ein Befehl, der nicht in der Liste steht, einen Neustart aus, antwortet das Gerät kurzzeitig nicht. Folgebefehle und der Verify versuchen es dann innerhalb des 90-s-Fensters mit Backoff erneut, bevor sie als `offline` scheitern.
+
+**Gerät kommt nicht zurück** (z. B. falscher MQTT- oder WLAN-Wert): Die noch offenen Einträge des Geräts werden als `offline` markiert und bleiben mit Hinweis im Puffer. Einträge, die vorher erfolgreich geschrieben und geprüft wurden, werden trotzdem entfernt.
 
 **Ergebnis:**
 
@@ -247,13 +259,15 @@ Die Einstellungen sind fest definiert: Die Definitionen stehen in `packages/serv
 - Katalog: Validierung, Lesen, Reihenfolge
 - Namensregeln und Nummerierung
 - Puffer-Semantik: letzter Wert gilt, unveränderter Wert wird verworfen, Befehle bleiben in Reihenfolge
-- Aufteilung eines Batches in Befehlsfolgen, MQTT zuletzt
+- Aufteilung eines Batches in Befehlsfolgen: Einstellungen mit Neustart gebündelt in einem `Backlog` am Ende, Neustart-Befehle unter den freien Befehlen erkannt
+- Neustart-Erkennung: erst eine kleinere `UptimeSec` zählt, der Online-Status allein nicht; Timeout nach 90 s
 - Rule/Timer-Umwandlung zwischen Formular und JSON
 - Zuordnung HA-Gerät zu MAC
 
 **Integration:**
 
-- Das simulierte Tasmota-Gerät wird erweitert um `Status 10`, `RuleN`, `TimerN`, `Timers`, die Katalog-Einstellungen, `SetOption4` und ein Neustart-Verhalten.
+- Das simulierte Tasmota-Gerät wird erweitert um `Status 10`, `Status 11`, `RuleN`, `TimerN`, `Timers`, `Backlog`, die Katalog-Einstellungen und `SetOption4`. Dazu kommt ein realistisches Neustart-Verhalten: Nach etwa 1 s ist das Gerät für eine einstellbare Dauer weg, bei MQTT mit LWT „Offline“ → „Online“, danach beginnt `UptimeSec` wieder bei 0.
+- Getestet werden auch: mehrere MQTT-Einstellungen führen zu genau einem Neustart, und ein Gerät, das nicht zurückkommt, hinterlässt seine offenen Einträge als `offline`.
 - Ein simulierter HA-WebSocket-Server liefert die Registrys, `search/related` und Events.
 - Getestet wird ein kompletter Apply-Lauf über MQTT und HTTP: Neustart abwarten, Verify, fehlgeschlagene Einträge bleiben stehen.
 
