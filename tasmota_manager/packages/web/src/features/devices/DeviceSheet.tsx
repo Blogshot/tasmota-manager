@@ -43,6 +43,7 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
     mutationFn: (cmd: string) => api.command(deviceId, cmd),
     onSuccess: (result: CommandResult) =>
       result.ok ? toast.success(JSON.stringify(result.response)) : toast.error(t('common.error', { message: result.message })),
+    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
   });
   const remove = useMutation({
     mutationFn: () => api.removeDevice(deviceId),
@@ -50,6 +51,7 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
       void qc.invalidateQueries({ queryKey: ['devices'] });
       onClose();
     },
+    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
   });
 
   if (!device) return null;
@@ -115,7 +117,7 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
 
       <section className="space-y-2">
         <h3 className="text-sm font-medium">{t('console.title')}</h3>
-        <Console deviceId={device.id} />
+        <Console key={device.id} deviceId={device.id} />
       </section>
 
       <Button

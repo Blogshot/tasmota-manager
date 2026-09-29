@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
 import { makeDevice } from '@/test/fixtures';
@@ -10,6 +11,8 @@ vi.mock('@/lib/api', () => ({
   api: { devices: vi.fn(), device: vi.fn(), updateDevice: vi.fn(), removeDevice: vi.fn(), command: vi.fn() },
   ApiError: class extends Error {},
 }));
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 describe('DeviceSheet', () => {
   beforeEach(() => {
@@ -51,5 +54,13 @@ describe('DeviceSheet', () => {
     await user.type(await screen.findByLabelText('Passwort nur für dieses Gerät'), 'geheim');
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(onSwitch).toHaveBeenCalledWith('AABBCC112233'));
+  });
+
+  it('zeigt einen Fehler-Toast, wenn eine Aktion fehlschlägt', async () => {
+    vi.mocked(api.command).mockRejectedValueOnce(new Error('offline'));
+    const user = userEvent.setup();
+    renderWithProviders(<DeviceSheet deviceId="AABBCC112233" onClose={vi.fn()} onSwitch={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'Schalten' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Fehler: offline'));
   });
 });
