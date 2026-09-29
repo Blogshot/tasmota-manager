@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
+import { DevicesPage } from '@/features/devices/DevicesPage';
 import { useT } from '@/lib/i18n';
 import { useLiveUpdates } from '@/lib/live';
 import { ROUTES, useHashRoute } from '@/lib/route';
@@ -18,7 +19,7 @@ export function App() {
           </Button>
         ))}
       </nav>
-      <main className="min-w-0 flex-1 space-y-4 p-6">{route}</main>
+      <main className="min-w-0 flex-1 space-y-4 p-6">{route === 'devices' ? <DevicesPage /> : null}</main>
       <Toaster />
     </div>
   );
