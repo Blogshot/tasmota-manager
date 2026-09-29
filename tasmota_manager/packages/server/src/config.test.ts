@@ -42,6 +42,14 @@ describe('loadConfig', () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('{}', { status: 400 }));
     const config = await loadConfig({ TM_DATA_DIR: dataDir(), SUPERVISOR_TOKEN: 'token' }, fetchFn);
     expect(config.mqtt).toBeNull();
+    expect(config.mqttLookupError).toBe('Supervisor antwortet mit HTTP 400');
+  });
+
+  it('meldet einen nicht erreichbaren Supervisor', async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error('getaddrinfo ENOTFOUND supervisor'));
+    const config = await loadConfig({ TM_DATA_DIR: dataDir(), SUPERVISOR_TOKEN: 'token' }, fetchFn);
+    expect(config.mqtt).toBeNull();
+    expect(config.mqttLookupError).toBe('getaddrinfo ENOTFOUND supervisor');
   });
 
   it('nutzt TM_MQTT_URL für die lokale Entwicklung', async () => {

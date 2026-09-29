@@ -1,7 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import pino from 'pino';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeTasmota } from '../../test/fakes/fakeTasmota';
 import { silentLogger, testDb } from '../../test/helpers';
 import { DeviceRegistry } from '../registry';
+import { TransportError } from '../transport/errors';
+import type { HttpSender } from '../transport/http';
 import { HttpTransport } from '../transport/http';
 import { identifyHost } from './identify';
 import { HttpPoller } from './poller';
@@ -29,7 +32,7 @@ describe('HttpPoller', () => {
   it('aktualisiert HTTP-Geräte', async () => {
     fake = await new FakeTasmota({ mac: MAC, name: 'Alt' }).start();
     await identifyHost(http, registry, fake.host, null);
-    fake.values.DeviceName = 'Neu';
+    fake.values.FriendlyName1 = 'Neu';
     await poller.pollOnce();
     expect(registry.get(MAC)?.name).toBe('Neu');
   });
@@ -62,5 +65,30 @@ describe('HttpPoller', () => {
     password = 'geheim';
     await poller.pollOnce();
     expect(registry.get(MAC)?.authRequired).toBe(false);
+  });
+
+  it('übersteht ein während der Abfrage gelöschtes Gerät', async () => {
+    fake = await new FakeTasmota({ mac: MAC }).start();
+    registry.upsert({ mac: MAC, name: 'X', ip: '10.0.0.9' }, { channel: 'http' });
+    const deletingHttp: HttpSender = {
+      send: async () => {
+        registry.remove(MAC);
+        throw new TransportError('auth', 'Passwort nötig');
+      },
+    };
+    poller = new HttpPoller({ http: deletingHttp, registry, passwordFor: () => null, intervalSec: () => 60, log: silentLogger });
+    await expect(poller.pollOnce()).resolves.toBeUndefined();
+    expect(registry.get(MAC)).toBeNull();
+  });
+
+  it('plant nach einem Fehler im Abfragezyklus weiter', async () => {
+    fake = await new FakeTasmota({ mac: MAC }).start();
+    const log = pino({ level: 'silent' });
+    const error = vi.spyOn(log, 'error');
+    poller = new HttpPoller({ http, registry, passwordFor: () => null, intervalSec: () => 0.01, log });
+    const pollOnce = vi.spyOn(poller, 'pollOnce').mockRejectedValueOnce(new Error('kaputt')).mockResolvedValue();
+    poller.start();
+    await vi.waitFor(() => expect(pollOnce.mock.calls.length).toBeGreaterThanOrEqual(2));
+    expect(error).toHaveBeenCalledTimes(1);
   });
 });

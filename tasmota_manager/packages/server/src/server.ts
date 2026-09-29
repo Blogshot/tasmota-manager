@@ -35,18 +35,23 @@ export interface RunningServer {
 
 export async function startServer(config: AppConfig, overrides: StartOverrides = {}): Promise<RunningServer> {
   const log = createLogger(config.logLevel);
+  if (config.mqttLookupError) log.warn({ reason: config.mqttLookupError }, 'MQTT-Dienst des Supervisors nicht verfügbar');
   mkdirSync(config.dataDir, { recursive: true });
   const db = openDb(join(config.dataDir, 'tasmota-manager.db'), overrides.migrationsDir ?? DEFAULT_MIGRATIONS_DIR);
 
   const settings = new SettingsStore(db, defaultSettings(overrides.scanCidrs ?? detectHostCidrs()));
   const registry = new DeviceRegistry(db);
+  // Der MQTT-Zustand aus der letzten Sitzung ist veraltet; Discovery und LWT setzen ihn neu.
+  registry.resetChannel('mqtt');
   const http = new HttpTransport();
   const mqtt = config.mqtt ? new MqttTransport(config.mqtt) : null;
   const gateway = new DeviceGateway({ registry, http, mqtt, globalPassword: () => settings.get().globalPassword });
-  const scanner = new HttpScanner(http, registry, (host) => {
-    const known = registry.findByIp(host);
-    return known ? gateway.passwordFor(known.id) : settings.get().globalPassword || null;
-  });
+  const scanner = new HttpScanner(
+    http,
+    registry,
+    (id) => gateway.passwordFor(id),
+    () => settings.get().globalPassword || null,
+  );
   const poller = new HttpPoller({
     http,
     registry,

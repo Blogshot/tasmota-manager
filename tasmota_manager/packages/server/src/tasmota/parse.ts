@@ -1,3 +1,5 @@
+import { intToIp, parseCidr } from '@tm/shared';
+
 export interface DeviceInfo {
   mac: string;
   name?: string;
@@ -20,6 +22,13 @@ export const isObj = (v: unknown): v is Json => typeof v === 'object' && v !== n
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v !== '' ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 const obj = (v: unknown): Json => (isObj(v) ? v : {});
+
+/** Nur gültige IPv4-Adressen ungleich 0.0.0.0, damit Broker-Nachrichten keine fremden Hosts einschleusen. */
+function ipv4(v: unknown): string | undefined {
+  if (typeof v !== 'string' || /\s/.test(v)) return undefined;
+  const parsed = parseCidr(`${v}/32`);
+  return parsed && parsed.base !== 0 ? intToIp(parsed.base) : undefined;
+}
 
 export function safeJson(text: string): unknown {
   try {
@@ -55,9 +64,10 @@ export function parseStatus0(payload: unknown): DeviceInfo | null {
   const friendly = Array.isArray(status.FriendlyName) ? str(status.FriendlyName[0]) : undefined;
   return {
     mac,
-    name: str(status.DeviceName) ?? friendly,
+    name: friendly ?? str(status.DeviceName),
     hostname: str(net.Hostname),
-    ip: str(net.IPAddress),
+    // ESP32 mit Ethernet meldet IPAddress 0.0.0.0 und die echte Adresse unter Ethernet.
+    ip: ipv4(obj(net.Ethernet).IPAddress) ?? ipv4(net.IPAddress),
     mqttTopic: str(status.Topic),
     chip: str(fwr.Hardware),
     flashSize: num(mem.FlashSize),
@@ -77,7 +87,7 @@ export function parseDiscoveryConfig(payload: unknown): DeviceInfo | null {
     mac,
     name: friendly ?? str(payload.dn),
     hostname: str(payload.hn),
-    ip: str(payload.ip),
+    ip: ipv4(payload.ip),
     mqttTopic: topic,
     fullTopic: str(payload.ft),
     module: str(payload.md),

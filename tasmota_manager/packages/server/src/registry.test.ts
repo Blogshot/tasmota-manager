@@ -25,6 +25,15 @@ describe('DeviceRegistry', () => {
     expect(updates).toHaveLength(1);
   });
 
+  it('entfernt einen Kanal bei allen Geräten und berechnet online neu', () => {
+    registry.upsert({ mac: MAC_A, name: 'A' }, { channel: 'mqtt' });
+    registry.markReachable(MAC_A, 'http');
+    registry.upsert({ mac: MAC_B, name: 'B' }, { channel: 'mqtt' });
+    registry.resetChannel('mqtt');
+    expect(registry.get(MAC_A)).toMatchObject({ channels: ['http'], online: true });
+    expect(registry.get(MAC_B)).toMatchObject({ channels: [], online: false });
+  });
+
   it('überschreibt bekannte Felder nicht mit undefined', () => {
     registry.upsert({ mac: MAC_A, name: 'Keller', firmware: '14.2.0', module: 'Sonoff Basic' });
     const device = registry.upsert({ mac: MAC_A, firmware: '14.3.0' });

@@ -32,7 +32,13 @@ async function setup(opts: SetupOptions = {}) {
   const http = new HttpTransport(2000);
   const gateway = new DeviceGateway({ registry, http, mqtt: null, globalPassword: () => settings.get().globalPassword });
   const fake = await new FakeTasmota({ mac: 'AABBCC112233', name: 'Keller', password: opts.fakePassword }).start();
-  const scanner = new HttpScanner(http, registry, () => settings.get().globalPassword, { port: fake.port, timeoutMs: 500 });
+  const scanner = new HttpScanner(
+    http,
+    registry,
+    (id) => gateway.passwordFor(id),
+    () => settings.get().globalPassword || null,
+    { port: fake.port, timeoutMs: 500 },
+  );
   const hub = new WsHub();
   wireLiveEvents({ hub, registry, scanner, mqtt: null });
   const app: FastifyInstance = await buildApp({

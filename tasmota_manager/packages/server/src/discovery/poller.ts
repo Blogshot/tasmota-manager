@@ -39,7 +39,11 @@ export class HttpPoller {
 
   private schedule(): void {
     this.timer = setTimeout(async () => {
-      await this.pollOnce();
+      try {
+        await this.pollOnce();
+      } catch (err) {
+        this.deps.log.error({ err }, 'HTTP-Abfragezyklus fehlgeschlagen');
+      }
       if (this.timer) this.schedule();
     }, this.deps.intervalSec() * 1000);
   }
@@ -48,11 +52,12 @@ export class HttpPoller {
     try {
       await identifyHost(this.deps.http, this.deps.registry, device.ip ?? '', this.deps.passwordFor(device.id), this.deps.timeoutMs ?? 5000);
     } catch (err) {
+      // Das Gerät kann während der Abfrage gelöscht oder aufgelöst worden sein.
+      if (!this.deps.registry.get(device.id)) return;
       if (err instanceof TransportError && err.code === 'auth') {
         this.deps.registry.setAuthRequired(device.id, true);
         return;
       }
-      if (!this.deps.registry.get(device.id)) return;
       const failures = this.deps.registry.recordHttpFailure(device.id);
       if (failures >= MAX_FAILURES) this.deps.registry.markUnreachable(device.id, 'http');
       this.deps.log.debug({ id: device.id, failures }, 'HTTP-Abfrage fehlgeschlagen');

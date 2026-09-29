@@ -137,6 +137,13 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
     return this.emitUpdated(id);
   }
 
+  /** Entfernt einen Kanal bei allen Geräten, z. B. den gespeicherten MQTT-Zustand beim Start. */
+  resetChannel(channel: Channel): void {
+    for (const row of this.db.select().from(devices).all()) {
+      if (row.channels.includes(channel)) this.markUnreachable(row.id, channel);
+    }
+  }
+
   updateRuntime(id: string, values: { rssi?: number; uptimeSec?: number }): Device | null {
     if (!this.row(id)) return null;
     const fields = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined));

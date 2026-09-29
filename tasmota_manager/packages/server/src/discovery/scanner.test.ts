@@ -47,7 +47,7 @@ describe('HttpScanner', () => {
     stranger = server;
     await new Promise<void>((resolve) => server.listen(first.port, '127.0.0.2', () => resolve()));
 
-    const scanner = new HttpScanner(http, registry, () => null, { port: first.port, timeoutMs: 500 });
+    const scanner = new HttpScanner(http, registry, () => null, () => null, { port: first.port, timeoutMs: 500 });
     const done: number[] = [];
     scanner.on('done', ({ found }) => done.push(found));
     expect(await scanner.scan(['127.0.0.0/29'])).toEqual({ found: 2 });
@@ -66,7 +66,7 @@ describe('HttpScanner', () => {
   it('legt für passwortgeschützte Geräte einen Platzhalter an und löst ihn mit Passwort auf', async () => {
     const locked = await new FakeTasmota({ mac: 'AABBCC000005', password: 'geheim' }).start();
     fakes.push(locked);
-    const scanner = new HttpScanner(http, registry, () => null, { port: locked.port, timeoutMs: 500 });
+    const scanner = new HttpScanner(http, registry, () => null, () => null, { port: locked.port, timeoutMs: 500 });
     const placeholder = await scanner.probe('127.0.0.1');
     expect(placeholder).toMatchObject({ id: placeholderId(locked.host), authRequired: true });
 
@@ -80,7 +80,7 @@ describe('HttpScanner', () => {
     fakes.push(locked);
     registry.upsert({ mac: 'AABBCC000006', name: 'X', ip: locked.host });
     registry.setPasswordOverride('AABBCC000006', 'geheim');
-    const scanner = new HttpScanner(http, registry, (host) => registry.getPasswordOverride(registry.findByIp(host)?.id ?? ''), {
+    const scanner = new HttpScanner(http, registry, (id) => registry.getPasswordOverride(id), () => null, {
       port: locked.port,
       timeoutMs: 500,
     });
@@ -88,8 +88,26 @@ describe('HttpScanner', () => {
     expect(device).toMatchObject({ id: 'AABBCC000006', authRequired: false });
   });
 
+  it('sendet das globale Passwort nur an passwortgeschützte Tasmota-Geräte', async () => {
+    const locked = await new FakeTasmota({ mac: 'AABBCC000007', password: 'geheim' }).start();
+    fakes.push(locked);
+    const queries: string[] = [];
+    const server = createServer((req, res) => {
+      queries.push(req.url ?? '');
+      res.writeHead(401, { 'Content-Type': 'text/html' }).end('<h1>Router</h1>');
+    });
+    stranger = server;
+    await new Promise<void>((resolve) => server.listen(locked.port, '127.0.0.2', () => resolve()));
+
+    const scanner = new HttpScanner(http, registry, () => null, () => 'geheim', { port: locked.port, timeoutMs: 500 });
+    expect(await scanner.scan(['127.0.0.0/30'])).toEqual({ found: 1 });
+    expect(queries.length).toBeGreaterThan(0);
+    expect(queries.some((q) => q.includes('password='))).toBe(false);
+    expect(registry.list()).toEqual([expect.objectContaining({ id: 'AABBCC000007', authRequired: false })]);
+  });
+
   it('verhindert parallele Scans', async () => {
-    const scanner = new HttpScanner(http, registry, () => null, { port: 1, timeoutMs: 200 });
+    const scanner = new HttpScanner(http, registry, () => null, () => null, { port: 1, timeoutMs: 200 });
     const first = scanner.scan(['127.0.0.1/32']);
     await expect(scanner.scan(['127.0.0.1/32'])).rejects.toThrow();
     await first;

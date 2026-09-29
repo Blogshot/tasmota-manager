@@ -16,6 +16,8 @@ export interface AppConfig {
   mqtt: MqttConfig | null;
   /** true unter dem Supervisor: nur Anfragen über den Ingress-Proxy zulassen. */
   ingressOnly: boolean;
+  /** Grund, warum der MQTT-Dienst des Supervisors nicht ermittelt werden konnte. */
+  mqttLookupError?: string;
 }
 
 interface AddonOptions {
@@ -33,12 +35,14 @@ interface SupervisorMqttService {
 export async function loadConfig(env: NodeJS.ProcessEnv = process.env, fetchFn: typeof fetch = fetch): Promise<AppConfig> {
   const dataDir = env.TM_DATA_DIR ?? '/data';
   const options = readOptions(join(dataDir, 'options.json'));
+  const { mqtt, lookupError } = await resolveMqtt(options, env, fetchFn);
   return {
     dataDir,
     port: Number(env.TM_PORT ?? 8099),
     logLevel: options.log_level ?? env.TM_LOG_LEVEL ?? 'info',
-    mqtt: await resolveMqtt(options, env, fetchFn),
+    mqtt,
     ingressOnly: Boolean(env.SUPERVISOR_TOKEN),
+    ...(lookupError ? { mqttLookupError: lookupError } : {}),
   };
 }
 
@@ -50,36 +54,49 @@ function readOptions(file: string): AddonOptions {
   }
 }
 
-async function resolveMqtt(options: AddonOptions, env: NodeJS.ProcessEnv, fetchFn: typeof fetch): Promise<MqttConfig | null> {
+async function resolveMqtt(
+  options: AddonOptions,
+  env: NodeJS.ProcessEnv,
+  fetchFn: typeof fetch,
+): Promise<{ mqtt: MqttConfig | null; lookupError?: string }> {
   if (options.mqtt_host) {
     return {
-      url: `mqtt://${options.mqtt_host}:${options.mqtt_port ?? 1883}`,
-      username: options.mqtt_username || undefined,
-      password: options.mqtt_password || undefined,
+      mqtt: {
+        url: `mqtt://${options.mqtt_host}:${options.mqtt_port ?? 1883}`,
+        username: options.mqtt_username || undefined,
+        password: options.mqtt_password || undefined,
+      },
     };
   }
+  let lookupError: string | undefined;
   if (env.SUPERVISOR_TOKEN) {
     try {
       const res = await fetchFn('http://supervisor/services/mqtt', {
         headers: { Authorization: `Bearer ${env.SUPERVISOR_TOKEN}` },
         signal: AbortSignal.timeout(5000),
       });
-      if (res.ok) {
+      if (!res.ok) {
+        lookupError = `Supervisor antwortet mit HTTP ${res.status}`;
+      } else {
         const { data } = (await res.json()) as SupervisorMqttService;
         if (data?.host) {
           return {
-            url: `${data.ssl ? 'mqtts' : 'mqtt'}://${data.host}:${data.port ?? 1883}`,
-            username: data.username,
-            password: data.password,
+            mqtt: {
+              url: `${data.ssl ? 'mqtts' : 'mqtt'}://${data.host}:${data.port ?? 1883}`,
+              username: data.username,
+              password: data.password,
+            },
           };
         }
+        lookupError = 'Supervisor meldet keinen MQTT-Dienst';
       }
-    } catch {
+    } catch (err) {
       // Kein MQTT-Dienst verfügbar: HTTP-Modus.
+      lookupError = err instanceof Error ? err.message : String(err);
     }
   }
-  if (env.TM_MQTT_URL) return { url: env.TM_MQTT_URL };
-  return null;
+  if (env.TM_MQTT_URL) return { mqtt: { url: env.TM_MQTT_URL }, lookupError };
+  return { mqtt: null, lookupError };
 }
 
 const IGNORED_INTERFACES = /^(lo|docker|hassio|veth|br-)/;

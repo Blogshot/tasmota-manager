@@ -40,7 +40,7 @@ describe('parseStatus0', () => {
   it('liest alle relevanten Felder', () => {
     expect(parseStatus0(STATUS0)).toEqual({
       mac: 'AABBCC112233',
-      name: 'Keller',
+      name: 'Keller-Licht',
       hostname: 'keller-1234',
       ip: '192.168.1.23',
       mqttTopic: 'keller',
@@ -51,6 +51,17 @@ describe('parseStatus0', () => {
       firmware: '14.2.0',
       variant: 'tasmota',
     });
+  });
+  it('nutzt DeviceName nur, wenn kein FriendlyName gesetzt ist', () => {
+    expect(parseStatus0({ ...STATUS0, Status: { ...STATUS0.Status, FriendlyName: [] } })?.name).toBe('Keller');
+  });
+  it('bevorzugt die Ethernet-IP von ESP32-Geräten', () => {
+    const net = { ...STATUS0.StatusNET, IPAddress: '0.0.0.0', Ethernet: { IPAddress: '192.168.1.50' } };
+    expect(parseStatus0({ ...STATUS0, StatusNET: net })?.ip).toBe('192.168.1.50');
+  });
+  it('verwirft ungültige oder leere IP-Adressen', () => {
+    expect(parseStatus0({ ...STATUS0, StatusNET: { ...STATUS0.StatusNET, IPAddress: '0.0.0.0' } })?.ip).toBeUndefined();
+    expect(parseStatus0({ ...STATUS0, StatusNET: { ...STATUS0.StatusNET, IPAddress: 'host/path?' } })?.ip).toBeUndefined();
   });
   it('liefert null ohne MAC (kein Tasmota)', () => {
     expect(parseStatus0({ hello: 'world' })).toBeNull();
@@ -82,6 +93,12 @@ describe('parseDiscoveryConfig', () => {
       firmware: '14.2.0',
       variant: undefined,
     });
+  });
+  it('verwirft IP-Adressen, die keine gültige IPv4 sind', () => {
+    const base = { mac: 'AABBCC112233', t: 'keller' };
+    expect(parseDiscoveryConfig({ ...base, ip: 'attacker.example' })?.ip).toBeUndefined();
+    expect(parseDiscoveryConfig({ ...base, ip: '0.0.0.0' })?.ip).toBeUndefined();
+    expect(parseDiscoveryConfig({ ...base, ip: '192.168.1.256' })?.ip).toBeUndefined();
   });
   it('liefert null ohne MAC oder Topic', () => {
     expect(parseDiscoveryConfig({ mac: 'AABBCC112233' })).toBeNull();

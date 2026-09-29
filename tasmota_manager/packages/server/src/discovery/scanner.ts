@@ -17,6 +17,8 @@ export function expandCidr(cidr: string): string[] {
   return ips;
 }
 
+const isAuthError = (err: unknown): boolean => err instanceof TransportError && err.code === 'auth';
+
 export interface ScannerOptions {
   port?: number;
   concurrency?: number;
@@ -31,7 +33,9 @@ export class HttpScanner extends EventEmitter<ScannerEvents> {
   constructor(
     private readonly http: HttpSender,
     private readonly registry: DeviceRegistry,
-    private readonly credentials: (host: string) => string | null,
+    /** Passwort (Override oder global) für bekannte Geräte. */
+    private readonly passwordFor: (id: string) => string | null,
+    private readonly globalPassword: () => string | null,
     private readonly opts: ScannerOptions = {},
   ) {
     super();
@@ -42,18 +46,32 @@ export class HttpScanner extends EventEmitter<ScannerEvents> {
     return port === 80 ? ip : `${ip}:${port}`;
   }
 
-  probe(ip: string): Promise<Device | null> {
+  async probe(ip: string): Promise<Device | null> {
     const host = this.hostFor(ip);
-    return this.probeHost(host, this.credentials(host));
+    const known = this.registry.findByIp(host);
+    if (known) return this.probeHost(host, this.passwordFor(known.id));
+    // Unbekannte Hosts bekommen das globale Passwort erst, wenn sie mit einem Tasmota-typischen 401 antworten.
+    const global = this.globalPassword();
+    if (!global) return this.probeHost(host, null);
+    try {
+      return await this.identify(host, null);
+    } catch (err) {
+      if (!isAuthError(err)) return null;
+    }
+    return this.probeHost(host, global);
   }
 
   async probeHost(host: string, password: string | null): Promise<Device | null> {
     try {
-      return await identifyHost(this.http, this.registry, host, password, this.opts.timeoutMs ?? 1500);
+      return await this.identify(host, password);
     } catch (err) {
-      if (err instanceof TransportError && err.code === 'auth') return this.registry.upsertAuthPlaceholder(host);
+      if (isAuthError(err)) return this.registry.upsertAuthPlaceholder(host);
       return null;
     }
+  }
+
+  private identify(host: string, password: string | null): Promise<Device> {
+    return identifyHost(this.http, this.registry, host, password, this.opts.timeoutMs ?? 1500);
   }
 
   async scan(cidrs: string[]): Promise<{ found: number }> {
