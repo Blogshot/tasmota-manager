@@ -4,6 +4,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import type { Db } from './db';
 import { deviceTags, devices, tags } from './db/schema';
 import type { DeviceInfo } from './tasmota/parse';
+import { hasSetOption4 } from './tasmota/parse';
 
 type DeviceRow = typeof devices.$inferSelect;
 type DeviceInsert = typeof devices.$inferInsert;
@@ -13,6 +14,7 @@ type RegistryEvents = { updated: [Device]; removed: [string] };
 export interface UpsertOptions {
   channel?: Channel;
   statusJson?: unknown;
+  sensorsJson?: unknown;
 }
 
 const PLACEHOLDER_PREFIX = 'IP-';
@@ -45,6 +47,15 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
     return this.row(id)?.statusJson ?? null;
   }
 
+  getSensors(id: string): unknown {
+    return this.row(id)?.sensorsJson ?? null;
+  }
+
+  /** Status- und Sensor-Rohdaten aller Geräte in einer Abfrage (für Namensvorschläge). */
+  listRaw(): Array<{ id: string; statusJson: unknown; sensorsJson: unknown }> {
+    return this.db.select({ id: devices.id, statusJson: devices.statusJson, sensorsJson: devices.sensorsJson }).from(devices).all();
+  }
+
   findByTopic(topic: string): Device | null {
     const row = this.db.select().from(devices).where(eq(devices.mqttTopic, topic)).get();
     return row ? toDevice(row, this.tagsOf(row.id)) : null;
@@ -59,6 +70,7 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
     const { mac: id, ...rest } = info;
     const fields = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)) as Partial<DeviceInsert>;
     if (opts.statusJson !== undefined) fields.statusJson = opts.statusJson;
+    if (opts.sensorsJson !== undefined) fields.sensorsJson = opts.sensorsJson;
 
     const removedIds: string[] = [];
     const displacedIds: string[] = [];
@@ -263,7 +275,7 @@ function toDevice(row: DeviceRow, tagNames: string[]): Device {
     lastSeen: row.lastSeen,
     hasPasswordOverride: Boolean(row.passwordOverride),
     tags: tagNames,
-    setOption4: false,
+    setOption4: hasSetOption4(row.statusJson),
     ha: null,
     nameSuggestion: null,
     pendingCount: 0,

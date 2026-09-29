@@ -1,5 +1,5 @@
-import type { Channel } from '@tm/shared';
-import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type { ChangeSource, Channel, JobItemStatus, JobStep } from '@tm/shared';
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const devices = sqliteTable('devices', {
   id: text('id').primaryKey(),
@@ -21,6 +21,7 @@ export const devices = sqliteTable('devices', {
   httpFailures: integer('http_failures').notNull().default(0),
   lastSeen: text('last_seen'),
   statusJson: text('status_json', { mode: 'json' }).$type<unknown>(),
+  sensorsJson: text('sensors_json', { mode: 'json' }).$type<unknown>(),
   passwordOverride: text('password_override'),
   createdAt: text('created_at').notNull(),
 });
@@ -47,4 +48,45 @@ export const deviceTags = sqliteTable(
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   valueJson: text('value_json', { mode: 'json' }).$type<unknown>(),
+});
+
+export const pendingChanges = sqliteTable(
+  'pending_changes',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    deviceId: text('device_id')
+      .notNull()
+      .references(() => devices.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<'setting' | 'command'>().notNull(),
+    key: text('key'),
+    value: text('value').notNull(),
+    position: integer('position').notNull().default(0),
+    source: text('source').$type<ChangeSource>().notNull(),
+    error: text('error'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  // Pro Gerät und Einstellung gibt es höchstens einen Eintrag (letzter Wert gilt); Befehle haben key = NULL.
+  (t) => [uniqueIndex('pending_changes_device_key').on(t.deviceId, t.key)],
+);
+
+export const jobs = sqliteTable('jobs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  type: text('type').notNull(),
+  status: text('status').$type<'running' | 'done'>().notNull(),
+  createdAt: text('created_at').notNull(),
+  finishedAt: text('finished_at'),
+});
+
+export const jobItems = sqliteTable('job_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  jobId: integer('job_id')
+    .notNull()
+    .references(() => jobs.id, { onDelete: 'cascade' }),
+  deviceId: text('device_id').notNull(),
+  deviceName: text('device_name').notNull(),
+  status: text('status').$type<JobItemStatus>().notNull(),
+  step: text('step').$type<JobStep>(),
+  error: text('error'),
+  changeIds: text('change_ids', { mode: 'json' }).$type<number[]>().notNull(),
 });

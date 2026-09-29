@@ -157,4 +157,19 @@ describe('DeviceRegistry', () => {
     expect(() => registry.setTags('NOPE', ['tag'])).toThrow(/Unbekanntes Gerät/);
     expect(() => registry.markReachable('NOPE', 'http')).toThrow(/Unbekanntes Gerät/);
   });
+
+  it('speichert Sensordaten und liefert Rohdaten gesammelt', () => {
+    registry.upsert({ mac: MAC_A, name: 'A' }, { statusJson: { Status: {} }, sensorsJson: { StatusSNS: { AM2301: { Temperature: 21 } } } });
+    expect(registry.getSensors(MAC_A)).toEqual({ StatusSNS: { AM2301: { Temperature: 21 } } });
+    expect(registry.listRaw()).toEqual([
+      { id: MAC_A, statusJson: { Status: {} }, sensorsJson: { StatusSNS: { AM2301: { Temperature: 21 } } } },
+    ]);
+  });
+
+  it('leitet SetOption4 aus dem gespeicherten Status ab', () => {
+    registry.upsert({ mac: MAC_A, name: 'A' }, { statusJson: { StatusLOG: { SetOption: ['00000010'] } } });
+    expect(registry.get(MAC_A)?.setOption4).toBe(true);
+    registry.upsert({ mac: MAC_A }, { statusJson: { StatusLOG: { SetOption: ['00000000'] } } });
+    expect(registry.get(MAC_A)?.setOption4).toBe(false);
+  });
 });

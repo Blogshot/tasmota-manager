@@ -105,3 +105,12 @@ export function parseModule(payload: unknown): string | null {
   const first = Object.values(payload.Module)[0];
   return typeof first === 'string' ? first : null;
 }
+
+/** SetOption4 1 lässt Tasmota auf `stat/<topic>/<Befehl>` statt `RESULT` antworten (Bitmaske in StatusLOG). */
+export function hasSetOption4(status0: unknown): boolean {
+  if (!isObj(status0)) return false;
+  const masks = obj(status0.StatusLOG).SetOption;
+  const first = Array.isArray(masks) ? masks[0] : undefined;
+  if (typeof first !== 'string' || !/^[0-9a-f]+$/i.test(first)) return false;
+  return (Number.parseInt(first, 16) & (1 << 4)) !== 0;
+}

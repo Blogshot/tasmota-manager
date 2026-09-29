@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  hasSetOption4,
   normalizeMac,
   parseDiscoveryConfig,
   parseModule,
@@ -116,5 +117,14 @@ describe('parseState / parseModule / safeJson', () => {
   it('gibt bei ungültigem JSON undefined zurück', () => {
     expect(safeJson('{"a":1}')).toEqual({ a: 1 });
     expect(safeJson('Online')).toBeUndefined();
+  });
+});
+
+describe('hasSetOption4', () => {
+  it('liest Bit 4 aus der ersten SetOption-Maske', () => {
+    expect(hasSetOption4({ StatusLOG: { SetOption: ['00008009'] } })).toBe(false);
+    expect(hasSetOption4({ StatusLOG: { SetOption: ['00008019'] } })).toBe(true);
+    expect(hasSetOption4({ StatusLOG: {} })).toBe(false);
+    expect(hasSetOption4(null)).toBe(false);
   });
 });
