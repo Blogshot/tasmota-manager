@@ -63,36 +63,38 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
     const removedIds: string[] = [];
     const displacedIds: string[] = [];
     let inheritedPassword: string | null = null;
-    if (info.ip) {
-      const others = this.db
-        .select()
-        .from(devices)
-        .where(and(eq(devices.ip, info.ip), ne(devices.id, id)))
-        .all();
-      for (const other of others) {
-        if (other.id.startsWith(PLACEHOLDER_PREFIX)) {
-          inheritedPassword = other.passwordOverride ?? inheritedPassword;
-          this.db.delete(devices).where(eq(devices.id, other.id)).run();
-          removedIds.push(other.id);
-        } else {
-          this.db.update(devices).set({ ip: null }).where(eq(devices.id, other.id)).run();
-          displacedIds.push(other.id);
+
+    this.db.transaction((tx) => {
+      if (info.ip) {
+        const others = tx
+          .select()
+          .from(devices)
+          .where(and(eq(devices.ip, info.ip), ne(devices.id, id)))
+          .all();
+        for (const other of others) {
+          if (other.id.startsWith(PLACEHOLDER_PREFIX)) {
+            inheritedPassword = other.passwordOverride ?? inheritedPassword;
+            tx.delete(devices).where(eq(devices.id, other.id)).run();
+            removedIds.push(other.id);
+          } else {
+            tx.update(devices).set({ ip: null }).where(eq(devices.id, other.id)).run();
+            displacedIds.push(other.id);
+          }
         }
       }
-    }
 
-    const existing = this.row(id);
-    if (existing) {
-      if (Object.keys(fields).length > 0) this.db.update(devices).set(fields).where(eq(devices.id, id)).run();
-    } else {
-      this.db
-        .insert(devices)
-        .values({ id, name: info.name ?? info.hostname ?? id, ...fields, createdAt: this.now().toISOString() })
-        .run();
-    }
-    if (inheritedPassword && !this.row(id)?.passwordOverride) {
-      this.db.update(devices).set({ passwordOverride: inheritedPassword }).where(eq(devices.id, id)).run();
-    }
+      const existing = tx.select().from(devices).where(eq(devices.id, id)).get();
+      if (existing) {
+        if (Object.keys(fields).length > 0) tx.update(devices).set(fields).where(eq(devices.id, id)).run();
+      } else {
+        tx.insert(devices)
+          .values({ id, name: info.name ?? info.hostname ?? id, ...fields, createdAt: this.now().toISOString() })
+          .run();
+      }
+      if (inheritedPassword && !tx.select().from(devices).where(eq(devices.id, id)).get()?.passwordOverride) {
+        tx.update(devices).set({ passwordOverride: inheritedPassword }).where(eq(devices.id, id)).run();
+      }
+    });
 
     for (const removedId of removedIds) this.emit('removed', removedId);
     for (const displacedId of displacedIds) this.emitUpdated(displacedId);

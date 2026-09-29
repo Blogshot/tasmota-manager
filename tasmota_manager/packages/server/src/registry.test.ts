@@ -102,4 +102,50 @@ describe('DeviceRegistry', () => {
     expect(registry.remove(MAC_A)).toBe(false);
     expect(removed).toEqual([MAC_A]);
   });
+
+  it('updateRuntime aktualisiert rssi/uptimeSec und lastSeen, ignoriert undefined', () => {
+    registry.upsert({ mac: MAC_A, name: 'A', rssi: -60, uptimeSec: 1000 });
+    const updated = registry.updateRuntime(MAC_A, { rssi: -50, uptimeSec: 2000 });
+    expect(updated).toMatchObject({ rssi: -50, uptimeSec: 2000, lastSeen: '2026-09-29T12:00:00.000Z' });
+    const partial = registry.updateRuntime(MAC_A, { rssi: -40 });
+    expect(partial).toMatchObject({ rssi: -40, uptimeSec: 2000 });
+    expect(registry.updateRuntime('NOPE', { rssi: -30 })).toBeNull();
+  });
+
+  it('setAuthRequired setzt und löscht authRequired', () => {
+    registry.upsert({ mac: MAC_A, name: 'A' });
+    let device = registry.setAuthRequired(MAC_A, true);
+    expect(device.authRequired).toBe(true);
+    device = registry.setAuthRequired(MAC_A, false);
+    expect(device.authRequired).toBe(false);
+  });
+
+  it('getStatus gibt statusJson zurück', () => {
+    registry.upsert({ mac: MAC_A, name: 'A' }, { statusJson: { test: 'value' } });
+    expect(registry.getStatus(MAC_A)).toEqual({ test: 'value' });
+    registry.upsert({ mac: MAC_B, name: 'B' });
+    expect(registry.getStatus(MAC_B)).toBeNull();
+    expect(registry.getStatus('NOPE')).toBeNull();
+  });
+
+  it('markUnreachable gibt null für unbekannte ID zurück', () => {
+    expect(registry.markUnreachable('NOPE', 'mqtt')).toBeNull();
+  });
+
+  it('upsert meldet verdrängte Geräte mit ip null', () => {
+    registry.upsert({ mac: MAC_A, name: 'A', ip: '10.0.0.5' });
+    updates.length = 0;
+    registry.upsert({ mac: MAC_B, name: 'B', ip: '10.0.0.5' });
+    const displaced = updates.find((d) => d.id === MAC_A);
+    expect(displaced).toBeDefined();
+    expect(displaced?.ip).toBeNull();
+  });
+
+  it('Mutator auf unbekannte ID wirft Fehler', () => {
+    expect(() => registry.setAuthRequired('NOPE', true)).toThrow(/Unbekanntes Gerät/);
+    expect(() => registry.recordHttpFailure('NOPE')).toThrow(/Unbekanntes Gerät/);
+    expect(() => registry.setPasswordOverride('NOPE', 'pwd')).toThrow(/Unbekanntes Gerät/);
+    expect(() => registry.setTags('NOPE', ['tag'])).toThrow(/Unbekanntes Gerät/);
+    expect(() => registry.markReachable('NOPE', 'http')).toThrow(/Unbekanntes Gerät/);
+  });
 });
