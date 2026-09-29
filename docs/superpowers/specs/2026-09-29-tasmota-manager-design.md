@@ -13,7 +13,9 @@ Eine Home Assistant App (ehemals „Add-on“), die alle Tasmota-Geräte im loka
 ### Umfang v1
 
 1. Geräteübersicht + Discovery
-2. Batch-Befehle + Konfigurationsvorlagen
+2. Batch-Bearbeitung über einen Änderungspuffer (Einstellungsformular, freie Befehle, Namensvorschläge, Rules/Timer), dazu HA-Links. Details und Abweichungen stehen in `2026-09-29-plan-2-staging-batch-design.md`.
+
+> **Aktualisierung (Plan 2):** Alle Änderungen an Geräten werden zuerst vorgemerkt und erst beim Start eines Batch-Vorgangs geschrieben. Die Konfigurationsvorlagen (§3.3 `templates/`, §4 `templates`, §5.3, §6 „Vorlagen“) entfallen vorerst. Wo diese Spec und die Plan-2-Spec sich widersprechen, gilt die Plan-2-Spec.
 3. Firmware-Updates (OTA), einzeln und im Batch
 4. Config-Backups (einzeln, im Batch, Wiederherstellung einzeln)
 
