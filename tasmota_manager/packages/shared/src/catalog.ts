@@ -171,6 +171,7 @@ const STATUS_READERS: Record<string, (status: Record<string, unknown>) => unknow
 
 /** Aktueller Wert aus dem gespeicherten `Status 0`, soweit er dort enthalten ist. */
 export function readFromStatus(key: string, status0: unknown): string | null {
+  if (!Object.hasOwn(STATUS_READERS, key)) return null;
   const reader = STATUS_READERS[key];
   if (!reader) return null;
   const value = reader(rec(status0));
@@ -201,7 +202,7 @@ export function renderPlaceholders(
   };
   let unknown: string | null = null;
   const value = template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, key: string) => {
-    if (!(key in values)) {
+    if (!Object.hasOwn(values, key)) {
       unknown ??= key;
       return '';
     }

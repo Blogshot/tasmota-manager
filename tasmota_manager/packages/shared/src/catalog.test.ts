@@ -77,6 +77,10 @@ describe('Einstellungskatalog', () => {
     expect(readFromStatus('Latitude', status)).toBeNull();
     expect(readFromStatus('DeviceName', null)).toBeNull();
   });
+
+  it('schützt vor Prototyp-Schlüsseln beim Lesen', () => {
+    expect(readFromStatus('constructor', {})).toBeNull();
+  });
 });
 
 describe('Timer', () => {
@@ -122,6 +126,10 @@ describe('Platzhalter', () => {
 
   it('meldet unbekannte Platzhalter', () => {
     expect(renderPlaceholders('X {{foo}}', device)).toEqual({ ok: false, unknown: 'foo' });
+  });
+
+  it('schützt vor Prototyp-Schlüsseln', () => {
+    expect(renderPlaceholders('X {{constructor}}', device)).toEqual({ ok: false, unknown: 'constructor' });
   });
 });
 
