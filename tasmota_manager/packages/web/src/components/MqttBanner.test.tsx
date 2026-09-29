@@ -13,8 +13,14 @@ describe('MqttBanner', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('MQTT-Broker nicht erreichbar');
   });
 
-  it('bleibt bei verbundenem Broker unsichtbar', async () => {
-    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false });
+  it('warnt auch während eines erneuten Verbindungsversuchs', async () => {
+    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connecting', version: 'x', scanning: false });
+    renderWithProviders(<MqttBanner />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('MQTT-Broker nicht erreichbar');
+  });
+
+  it.each(['connected', 'disabled'] as const)('bleibt bei Status %s unsichtbar', async (mqtt) => {
+    vi.mocked(api.status).mockResolvedValue({ mqtt, version: 'x', scanning: false });
     renderWithProviders(<MqttBanner />);
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
