@@ -1,0 +1,22 @@
+name: Tasmota Manager
+version: "0.1.0"
+slug: tasmota_manager
+description: Verwaltung und Batch-Konfiguration aller Tasmota-Geräte im Netzwerk
+arch:
+  - amd64
+  - aarch64
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:lightning-bolt-circle
+panel_title: Tasmota
+host_network: true
+services:
+  - mqtt:want
+options:
+  log_level: info
+schema:
+  log_level: list(trace|debug|info|warn|error)
+  mqtt_host: str?
+  mqtt_port: port?
+  mqtt_username: str?
+  mqtt_password: password?

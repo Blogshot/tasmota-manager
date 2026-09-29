@@ -1,0 +1,16 @@
+configuration:
+  log_level:
+    name: Log-Level
+    description: Detailgrad der Protokollausgabe.
+  mqtt_host:
+    name: MQTT-Host
+    description: Nur setzen, wenn nicht der MQTT-Broker aus Home Assistant (z. B. Mosquitto) verwendet werden soll.
+  mqtt_port:
+    name: MQTT-Port
+    description: Standard ist 1883.
+  mqtt_username:
+    name: MQTT-Benutzer
+    description: Benutzername für den eigenen MQTT-Broker.
+  mqtt_password:
+    name: MQTT-Passwort
+    description: Passwort für den eigenen MQTT-Broker.
