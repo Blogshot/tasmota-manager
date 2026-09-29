@@ -46,13 +46,20 @@ Eine Home Assistant App (ehemals „Add-on“), die alle Tasmota-Geräte im loka
 
 ### 3.2 Repository-Struktur (pnpm workspaces)
 
+Das Repository ist gleichzeitig ein HA-App-Repository. Der Supervisor baut eine App lokal nur aus ihrem eigenen Ordner heraus (Build-Kontext = App-Ordner). Deshalb liegt das komplette Monorepo **im** App-Ordner `tasmota_manager/`. So funktioniert die Installation direkt über die Repository-URL, ohne eine eigene Container-Registry.
+
 ```
-tasmota-manager/
-├─ addon/            # config.yaml, Dockerfile, run.sh, DOCS.md, Icon, translations/
-├─ packages/shared/  # TS-Typen + zod-Schemas (API-Verträge, Gerätemodell)
-├─ packages/server/  # Fastify-Backend
-└─ packages/web/     # React + shadcn/ui SPA (wird als statisches Bundle vom Server ausgeliefert)
+tasmota-manager/                 # Git-Repository = HA-App-Repository
+├─ repository.yaml
+├─ docs/                         # Specs und Pläne
+└─ tasmota_manager/              # App-Ordner = pnpm-Monorepo-Wurzel
+   ├─ config.yaml, Dockerfile, DOCS.md, translations/
+   ├─ packages/shared/           # TS-Typen + zod-Schemas (API-Verträge, Gerätemodell)
+   ├─ packages/server/           # Fastify-Backend
+   └─ packages/web/              # React + shadcn/ui SPA (wird als statisches Bundle vom Server ausgeliefert)
 ```
+
+**Zugriffsschutz:** Wegen `host_network: true` ist der Ingress-Port auch im LAN erreichbar. Läuft die App unter dem Supervisor, nimmt der Server deshalb nur Anfragen vom Ingress-Proxy (`172.30.32.2`) und von `127.0.0.1` an.
 
 ### 3.3 Backend-Module
 
