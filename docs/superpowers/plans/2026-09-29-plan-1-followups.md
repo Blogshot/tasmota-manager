@@ -46,3 +46,9 @@ Aus den Task-Reviews und dem Abschluss-Review von Plan 1 zurückgestellte Punkte
 - Ruling: Minor #3-#8 of final review stay deferred (topic collision, HTTP-found watch, %hostname%/%id%, queueQoSZero/watch timeout, poll resurrecting deleted device (partially covered by #1 guard), stale detail sheet)
 - Ruling: residual — valid-but-malicious MQTT IP can repoint a known device to another LAN host (broker publisher trust); parked — requires broker write access; cost if wrong: credentials of that device sent to another LAN host; mitigation idea for later: only accept IP changes within scan CIDRs or require Status 0 confirmation over HTTP
 - Ruling: residual — a non-Tasmota server mimicking Tasmota 401 JSON receives the global password once; parked — inherent to Tasmota's HTTP auth design
+
+## Durch Plan 2 erledigt
+
+- Batch-Bearbeitung mehrerer Geräte (Änderungspuffer, Job-Engine)
+- Erklärende Fehlermeldung bei zu großen Scan-Bereichen
+- Geräte mit `SetOption4 1` werden erkannt und per HTTP angesprochen
