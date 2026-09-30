@@ -114,6 +114,29 @@ describe('PendingStore', () => {
     expect(store.forDevice(A).map((r) => r.value)).toEqual(commands);
   });
 
+  it('maskiert Passwort-Befehle auch mit Index, Gleichheitszeichen und Topic-Präfix', () => {
+    // Tasmota trennt den Namen am ersten Zeichen außerhalb von [A-Za-z0-9_/] und schneidet angehängte Ziffern als Index ab.
+    const commands = [
+      'WebPassword1 geheim1',
+      'MqttPassword1 geheim2',
+      'WebPassword=geheim3',
+      'cmnd/x/WebPassword geheim4',
+      'Backlog WebPassword1 geheim5; Power1 ON',
+      'Password3',
+    ];
+    store.stage({ deviceIds: [A], commands, source: 'command' });
+    expect(store.list()[0]?.changes.map((c) => c.value)).toEqual([
+      `WebPassword1 ${MASK}`,
+      `MqttPassword1 ${MASK}`,
+      `WebPassword ${MASK}`,
+      `cmnd/x/WebPassword ${MASK}`,
+      `Backlog WebPassword1 ${MASK}; Power1 ON`,
+      'Password3',
+    ]);
+    expect(JSON.stringify(store.list())).not.toContain('geheim');
+    expect(store.forDevice(A).map((r) => r.value)).toEqual(commands);
+  });
+
   it('rendert Platzhalter in Befehlen und hängt sie in Reihenfolge an', () => {
     store.stage({ deviceIds: [A], commands: ['FriendlyName1 {{name}}-{{mac6}}', 'Power ON'], source: 'command' });
     store.stage({ deviceIds: [A], commands: ['Restart 1'], source: 'command' });

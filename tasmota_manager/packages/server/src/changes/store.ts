@@ -14,27 +14,32 @@ import { prettifyError } from 'zod';
 import type { Db } from '../db';
 import { pendingChanges } from '../db/schema';
 import type { DeviceRegistry } from '../registry';
-import { splitCommand } from '../tasmota/commands';
 import { valuesEqual } from './catalog';
 
 export class StageError extends Error {}
 
 export const MASK = '••••';
 
-const SECRET_COMMANDS = new Set(['WEBPASSWORD', 'MQTTPASSWORD', 'PASSWORD', 'PASSWORD1', 'PASSWORD2']);
+const SECRET_COMMANDS = new Set(['WEBPASSWORD', 'MQTTPASSWORD', 'PASSWORD']);
 
-/** Blendet für die Ausgabe das Argument von Passwort-Befehlen aus, auch innerhalb eines Backlog. */
+/**
+ * Blendet für die Ausgabe das Argument von Passwort-Befehlen aus, auch innerhalb eines Backlog.
+ * Der Name wird wie in der Firmware bestimmt: Er endet am ersten Zeichen außerhalb von [A-Za-z0-9_/],
+ * ein Topic-Präfix und angehängte Ziffern (Index) zählen nicht dazu.
+ */
 export function maskSecrets(command: string): string {
-  const { name, args } = splitCommand(command);
-  if (args === '') return command;
-  const upper = name.toUpperCase();
-  if (/^BACKLOG\d?$/.test(upper)) {
-    return `${name} ${args
+  const trimmed = command.trim();
+  const name = /^[A-Za-z0-9_/]+/.exec(trimmed)?.[0] ?? '';
+  const rest = trimmed.slice(name.length).trim();
+  if (name === '' || rest === '') return command;
+  const base = name.slice(name.lastIndexOf('/') + 1).replace(/\d+$/, '').toUpperCase();
+  if (base === 'BACKLOG') {
+    return `${name} ${rest
       .split(';')
       .map((part) => maskSecrets(part.trim()))
       .join('; ')}`;
   }
-  return SECRET_COMMANDS.has(upper) ? `${name} ${MASK}` : command;
+  return SECRET_COMMANDS.has(base) ? `${name} ${MASK}` : command;
 }
 
 export interface PendingRow {
