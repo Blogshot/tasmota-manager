@@ -79,6 +79,31 @@ describe('PendingStore', () => {
     expect(store.forDevice(A)[0]?.value).toBe('geheim');
   });
 
+  it('maskiert Passwörter in freien Befehlen, auch im Backlog und unabhängig von der Schreibweise', () => {
+    const commands = [
+      'WebPassword geheim1',
+      'mqttpassword geheim2',
+      'Backlog Password1 geheim3; Power ON;PASSWORD2 geheim4',
+      'Password geheim5',
+      'backlog0 SSId1 netz; webpassword geheim6',
+      'Power ON',
+      'WebPassword',
+    ];
+    store.stage({ deviceIds: [A], commands, source: 'command' });
+    expect(store.list()[0]?.changes.map((c) => c.value)).toEqual([
+      `WebPassword ${MASK}`,
+      `mqttpassword ${MASK}`,
+      `Backlog Password1 ${MASK}; Power ON; PASSWORD2 ${MASK}`,
+      `Password ${MASK}`,
+      `backlog0 SSId1 netz; webpassword ${MASK}`,
+      'Power ON',
+      'WebPassword',
+    ]);
+    expect(JSON.stringify(store.list())).not.toContain('geheim');
+    // Gespeichert und gesendet wird der echte Wert.
+    expect(store.forDevice(A).map((r) => r.value)).toEqual(commands);
+  });
+
   it('rendert Platzhalter in Befehlen und hängt sie in Reihenfolge an', () => {
     store.stage({ deviceIds: [A], commands: ['FriendlyName1 {{name}}-{{mac6}}', 'Power ON'], source: 'command' });
     store.stage({ deviceIds: [A], commands: ['Restart 1'], source: 'command' });

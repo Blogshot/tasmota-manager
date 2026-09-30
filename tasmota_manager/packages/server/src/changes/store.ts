@@ -14,11 +14,28 @@ import { prettifyError } from 'zod';
 import type { Db } from '../db';
 import { pendingChanges } from '../db/schema';
 import type { DeviceRegistry } from '../registry';
+import { splitCommand } from '../tasmota/commands';
 import { valuesEqual } from './catalog';
 
 export class StageError extends Error {}
 
 export const MASK = '••••';
+
+const SECRET_COMMANDS = new Set(['WEBPASSWORD', 'MQTTPASSWORD', 'PASSWORD', 'PASSWORD1', 'PASSWORD2']);
+
+/** Blendet für die Ausgabe das Argument von Passwort-Befehlen aus, auch innerhalb eines Backlog. */
+export function maskSecrets(command: string): string {
+  const { name, args } = splitCommand(command);
+  if (args === '') return command;
+  const upper = name.toUpperCase();
+  if (/^BACKLOG\d?$/.test(upper)) {
+    return `${name} ${args
+      .split(';')
+      .map((part) => maskSecrets(part.trim()))
+      .join('; ')}`;
+  }
+  return SECRET_COMMANDS.has(upper) ? `${name} ${MASK}` : command;
+}
 
 export interface PendingRow {
   id: number;
@@ -108,7 +125,7 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
         deviceId: row.deviceId,
         kind: row.kind,
         key: row.key,
-        value: writeOnly ? MASK : row.value,
+        value: writeOnly ? MASK : row.kind === 'command' ? maskSecrets(row.value) : row.value,
         before:
           row.kind === 'setting' && row.key && !writeOnly ? readFromStatus(row.key, this.registry.getStatus(row.deviceId)) : null,
         source: row.source,

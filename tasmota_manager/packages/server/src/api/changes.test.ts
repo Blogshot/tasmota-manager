@@ -30,6 +30,19 @@ describe('Änderungs-API', () => {
     expect(JSON.stringify(list)).not.toContain('geheim');
   });
 
+  it('gibt Passwörter aus freien Befehlen nicht aus, sendet sie aber unverändert ans Gerät', async () => {
+    const { app, fake, runner } = await setupApp();
+    await addFake(app);
+    await stage(app, { deviceIds: [MAC], commands: ['Backlog MqttUser neu; MqttPassword geheim'], source: 'command' });
+    const res = await app.inject('/api/changes');
+    expect(res.json<PendingDevice[]>()[0]?.changes.map((c) => c.value)).toEqual(['Backlog MqttUser neu; MqttPassword ••••']);
+    expect(res.body).not.toContain('geheim');
+    await app.inject({ method: 'POST', url: '/api/changes/apply', payload: {} });
+    await runner.waitIdle();
+    expect(fake.received).toContain('Backlog MqttUser neu; MqttPassword geheim');
+    expect(fake.values.MqttPassword).toBe('geheim');
+  });
+
   it('lehnt ungültige Werte und Backlog-Injektion mit 400 ab', async () => {
     const { app } = await setupApp();
     await addFake(app);
