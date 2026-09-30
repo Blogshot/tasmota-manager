@@ -54,7 +54,9 @@ export class MqttDiscovery {
     try {
       const payload = await this.mqtt.send(target, 'Status 0');
       const info = parseStatus0(payload);
-      if (info) this.registry.upsert(info, { statusJson: payload });
+      if (!info) return;
+      const sensors = await this.mqtt.send(target, 'Status 10').catch(() => undefined);
+      this.registry.upsert(info, { statusJson: payload, sensorsJson: sensors });
     } catch (err) {
       this.log.warn({ err, id }, 'Status 0 per MQTT fehlgeschlagen');
     }

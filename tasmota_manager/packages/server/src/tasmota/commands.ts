@@ -31,6 +31,8 @@ export function matchesResponse(commandName: string, suffix: string, payload: un
   if (suffix !== 'RESULT' || !isObj(payload)) return false;
   if ('Command' in payload) return true;
   const base = name.replace(/\d+$/, '');
+  // Tasmota beantwortet einen Backlog mit einer RESULT-Nachricht pro Teilbefehl; die erste genügt als Bestätigung.
+  if (base === 'BACKLOG') return true;
   if (base === 'TEMPLATE' && 'NAME' in payload) return true;
   return Object.keys(payload).some((key) => key.toUpperCase().startsWith(base));
 }

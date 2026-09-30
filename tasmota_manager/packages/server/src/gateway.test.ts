@@ -104,4 +104,10 @@ describe('DeviceGateway', () => {
     registry.upsert({ mac: 'AABBCC000009', name: 'Ohne' });
     await expect(gateway.send('AABBCC000009', 'Power')).rejects.toMatchObject({ code: 'offline' });
   });
+
+  it('meidet MQTT bei Geräten mit SetOption4', async () => {
+    registry.upsert({ mac: MAC }, { statusJson: { StatusLOG: { SetOption: ['00000010'] } } });
+    expect((await gateway.send(MAC, 'Power')).channel).toBe('http');
+    expect(mqtt.calls).toEqual([]);
+  });
 });

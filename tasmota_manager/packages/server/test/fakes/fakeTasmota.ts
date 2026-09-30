@@ -14,12 +14,57 @@ export interface FakeTasmotaOptions {
   bindHost?: string;
   port?: number;
   responseDelayMs?: number;
+  /** Inhalt von StatusSNS (Status 10), z. B. { AM2301: { Temperature: 21.3, Humidity: 40 } }. */
+  sensors?: Record<string, unknown>;
+  /** Anzahl Relais (Standard 1). */
+  relays?: number;
+  /** Zusätzliche StatusSTS-Felder, z. B. { Dimmer: 50 }. */
+  extraState?: Record<string, unknown>;
+  setOption4?: boolean;
+  /** IP in Discovery und Status 0 melden (Standard: ja). */
+  advertiseIp?: boolean;
+  /** Verzögerung bis zum Neustart nach einem auslösenden Befehl (Standard 50 ms). */
+  restartDelayMs?: number;
+  /** So lange ist das Gerät beim Neustart nicht erreichbar (Standard 200 ms). */
+  downtimeMs?: number;
+  /** Diese Einstellungen werden bestätigt, aber nicht übernommen (für Verify-Tests). */
+  ignore?: string[];
 }
 
-/** Simuliert ein Tasmota-Gerät mit HTTP-API (/cm) und MQTT-Anbindung. */
+type Json = Record<string, unknown>;
+export interface FakeResult {
+  suffix: string;
+  payload: Json;
+}
+
+interface FakeRule {
+  state: boolean;
+  text: string;
+}
+
+const RESTART_KEYS = new Set(['MQTTHOST', 'MQTTPORT', 'MQTTUSER', 'MQTTPASSWORD', 'TOPIC', 'HOSTNAME']);
+const isOn = (arg: string): boolean => ['1', 'ON', 'TRUE'].includes(arg.toUpperCase());
+const unquote = (arg: string): string => (arg === '""' ? '' : arg);
+const result = (payload: Json): FakeResult => ({ suffix: 'RESULT', payload });
+
+/** Simuliert ein Tasmota-Gerät mit HTTP-API (/cm), MQTT-Anbindung und Neustart-Verhalten. */
 export class FakeTasmota {
   readonly received: string[] = [];
   readonly values: Record<string, string>;
+  readonly rules: FakeRule[] = [1, 2, 3].map(() => ({ state: false, text: '' }));
+  readonly timers: Json[] = Array.from({ length: 16 }, () => ({
+    Enable: 0,
+    Mode: 0,
+    Time: '00:00',
+    Window: 0,
+    Days: '0000000',
+    Repeat: 0,
+    Output: 1,
+    Action: 0,
+  }));
+  timersEnabled = true;
+  restarts = 0;
+  down = false;
   readonly mac: string;
   readonly topic: string;
   readonly fullTopic: string;
@@ -27,6 +72,11 @@ export class FakeTasmota {
   port = 0;
   private server: Server | null = null;
   private client: MqttClient | null = null;
+  private mqttUrl: string | null = null;
+  private bootAt = Date.now();
+  private uptimeBase = 100;
+  private restartTimer: NodeJS.Timeout | null = null;
+  private stopped = false;
 
   constructor(private readonly opts: FakeTasmotaOptions) {
     this.mac = opts.mac;
@@ -35,18 +85,37 @@ export class FakeTasmota {
     this.bindHost = opts.bindHost ?? '127.0.0.1';
     const name = opts.name ?? 'Tasmota';
     this.values = {
-      POWER: 'OFF',
       DeviceName: name,
       FriendlyName1: name,
       Timezone: '99',
-      MqttHost: '',
+      MqttHost: 'broker.local',
+      MqttPort: '1883',
+      MqttUser: 'DVES_USER',
+      MqttPassword: 'secret',
       SetOption19: 'OFF',
+      SetOption4: opts.setOption4 ? 'ON' : 'OFF',
       TelePeriod: '300',
+      PowerOnState: '3',
+      SetOption65: 'OFF',
+      LedState: '1',
+      LedPower: 'ON',
+      Sleep: '50',
+      SetOption53: 'OFF',
+      LogHost: '',
+      SysLog: '0',
+      Latitude: '0.000000',
+      Longitude: '0.000000',
+      NtpServer1: 'pool.ntp.org',
     };
+    for (const key of this.relayKeys()) this.values[key] = 'OFF';
   }
 
   get host(): string {
     return `${this.bindHost}:${this.port}`;
+  }
+
+  uptimeSec(): number {
+    return this.uptimeBase + Math.floor((Date.now() - this.bootAt) / 1000);
   }
 
   async start(): Promise<this> {
@@ -61,6 +130,7 @@ export class FakeTasmota {
   }
 
   async connectMqtt(url: string): Promise<void> {
+    this.mqttUrl = url;
     const lwt = `${buildTopic(this.fullTopic, 'tele', this.topic)}LWT`;
     const cmnd = buildTopic(this.fullTopic, 'cmnd', this.topic);
     const stat = buildTopic(this.fullTopic, 'stat', this.topic);
@@ -68,12 +138,12 @@ export class FakeTasmota {
     this.client = client;
     await client.subscribeAsync(`${cmnd}#`);
     client.on('message', (topic, message) => {
-      if (!topic.startsWith(cmnd)) return;
+      if (!topic.startsWith(cmnd) || this.down) return;
       const name = topic.slice(cmnd.length);
       const command = message.length > 0 ? `${name} ${message.toString()}` : name;
-      const { suffix, payload } = this.execute(command);
+      const results = this.execute(command);
       setTimeout(() => {
-        void client.publishAsync(`${stat}${suffix}`, JSON.stringify(payload)).catch(() => undefined);
+        for (const r of results) void client.publishAsync(`${stat}${r.suffix}`, JSON.stringify(r.payload)).catch(() => undefined);
       }, this.opts.responseDelayMs ?? 0);
     });
     await client.publishAsync(`tasmota/discovery/${this.mac}/config`, JSON.stringify(this.discoveryConfig()), { retain: true });
@@ -93,6 +163,9 @@ export class FakeTasmota {
   }
 
   async stop(): Promise<void> {
+    this.stopped = true;
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
     await this.client?.endAsync(true);
     this.client = null;
     const server = this.server;
@@ -103,27 +176,21 @@ export class FakeTasmota {
     }
   }
 
-  execute(command: string): { suffix: string; payload: Record<string, unknown> } {
+  /** Führt einen Befehl aus; `Backlog` liefert eine Antwort pro Teilbefehl. */
+  execute(command: string): FakeResult[] {
     this.received.push(command);
     const { name, args } = splitCommand(command);
-    const upper = name.toUpperCase();
-    if (upper === 'STATUS' && args === '0') return { suffix: 'STATUS0', payload: this.status0() };
-    if (upper === 'MODULE' && !args) return { suffix: 'RESULT', payload: { Module: { '1': this.opts.module ?? 'Sonoff Basic' } } };
-    if (upper === 'RESTART') return { suffix: 'RESULT', payload: { Restart: 'Restarting' } };
-    if (upper === 'POWER' || upper === 'POWER1') {
-      const current = this.values.POWER;
-      const arg = args.toUpperCase();
-      const next = !arg ? current : arg === 'TOGGLE' ? (current === 'ON' ? 'OFF' : 'ON') : arg === 'ON' || arg === '1' ? 'ON' : 'OFF';
-      this.values.POWER = next ?? 'OFF';
-      return { suffix: 'RESULT', payload: { POWER: this.values.POWER } };
+    if (name.toUpperCase() === 'BACKLOG') {
+      return args
+        .split(';')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .flatMap((part) => this.execute(part));
     }
-    const key = Object.keys(this.values).find((k) => k.toUpperCase() === upper);
-    if (!key) return { suffix: 'RESULT', payload: { Command: 'Unknown' } };
-    if (args) this.values[key] = args;
-    return { suffix: 'RESULT', payload: { [key]: this.values[key] } };
+    return [this.executeOne(name.toUpperCase(), args)];
   }
 
-  status0(): Record<string, unknown> {
+  status0(): Json {
     const macColons = this.mac.match(/../g)?.join(':') ?? this.mac;
     return {
       Status: {
@@ -132,17 +199,127 @@ export class FakeTasmota {
         FriendlyName: [this.values.FriendlyName1],
         Topic: this.topic,
         Power: this.values.POWER === 'ON' ? '1' : '0',
+        PowerOnState: Number(this.values.PowerOnState),
+        LedState: Number(this.values.LedState),
       },
+      StatusPRM: { Sleep: Number(this.values.Sleep) },
       StatusFWR: { Version: this.opts.firmware ?? '14.2.0(release-tasmota)', Hardware: 'ESP8266EX' },
-      StatusNET: { Hostname: `${this.topic}-1234`, IPAddress: this.bindHost, Mac: macColons },
+      StatusLOG: {
+        SysLog: Number(this.values.SysLog),
+        LogHost: this.values.LogHost,
+        TelePeriod: Number(this.values.TelePeriod),
+        SetOption: [this.values.SetOption4 === 'ON' ? '00000010' : '00000000'],
+      },
+      StatusMQT: { MqttHost: this.values.MqttHost, MqttPort: Number(this.values.MqttPort), MqttUser: this.values.MqttUser },
+      StatusNET: {
+        Hostname: `${this.topic}-1234`,
+        IPAddress: this.opts.advertiseIp === false ? '0.0.0.0' : this.bindHost,
+        Mac: macColons,
+      },
       StatusMEM: { FlashSize: 4096 },
-      StatusSTS: { UptimeSec: 100, Wifi: { Signal: -60 } },
+      StatusSTS: this.statusSts(),
     };
   }
 
-  private discoveryConfig(): Record<string, unknown> {
+  private relayKeys(): string[] {
+    const n = this.opts.relays ?? 1;
+    return n === 1 ? ['POWER'] : Array.from({ length: n }, (_, i) => `POWER${i + 1}`);
+  }
+
+  private statusSts(): Json {
+    const power = Object.fromEntries(this.relayKeys().map((k) => [k, this.values[k] ?? 'OFF']));
+    return { UptimeSec: this.uptimeSec(), Wifi: { Signal: -60 }, ...power, ...this.opts.extraState };
+  }
+
+  private executeOne(upper: string, args: string): FakeResult {
+    if (upper === 'STATUS') {
+      if (args === '0') return { suffix: 'STATUS0', payload: this.status0() };
+      if (args === '10') return { suffix: 'STATUS10', payload: { StatusSNS: { Time: '2026-09-29T12:00:00', ...this.opts.sensors } } };
+      if (args === '11') return { suffix: 'STATUS11', payload: { StatusSTS: this.statusSts() } };
+    }
+    if (upper === 'MODULE' && !args) return result({ Module: { '1': this.opts.module ?? 'Sonoff Basic' } });
+    if (upper === 'RESTART') {
+      if (args) this.scheduleRestart();
+      return result({ Restart: 'Restarting' });
+    }
+    if (upper === 'POWER' || upper === 'POWER1') {
+      const current = this.values.POWER ?? 'OFF';
+      const arg = args.toUpperCase();
+      const next = !arg ? current : arg === 'TOGGLE' ? (current === 'ON' ? 'OFF' : 'ON') : isOn(arg) ? 'ON' : 'OFF';
+      this.values.POWER = next;
+      return result({ POWER: next });
+    }
+    const rule = /^RULE([1-3])$/.exec(upper);
+    if (rule) return result(this.rule(Number(rule[1]), args));
+    const timer = /^TIMER(\d{1,2})$/.exec(upper);
+    if (timer && Number(timer[1]) >= 1 && Number(timer[1]) <= 16) return result(this.timer(Number(timer[1]), args));
+    if (upper === 'TIMERS') {
+      if (args) this.timersEnabled = isOn(args);
+      return result({ Timers: this.timersEnabled ? 'ON' : 'OFF' });
+    }
+    const key = Object.keys(this.values).find((k) => k.toUpperCase() === upper);
+    if (!key) return result({ Command: 'Unknown' });
+    if (args && !(this.opts.ignore ?? []).includes(key)) {
+      const current = this.values[key];
+      this.values[key] = current === 'ON' || current === 'OFF' ? (isOn(args) ? 'ON' : 'OFF') : unquote(args);
+      if (RESTART_KEYS.has(upper)) this.scheduleRestart();
+    }
+    return result({ [key]: key === 'MqttPassword' ? '****' : this.values[key] });
+  }
+
+  private rule(index: number, args: string): Json {
+    const rule = this.rules[index - 1] as FakeRule;
+    const upper = args.toUpperCase();
+    if (upper === '1' || upper === 'ON') rule.state = true;
+    else if (upper === '0' || upper === 'OFF') rule.state = false;
+    else if (args) rule.text = unquote(args);
     return {
-      ip: this.bindHost,
+      [`Rule${index}`]: {
+        State: rule.state ? 'ON' : 'OFF',
+        Once: 'OFF',
+        StopOnError: 'OFF',
+        Length: rule.text.length,
+        Free: 511 - rule.text.length,
+        Rules: rule.text,
+      },
+    };
+  }
+
+  private timer(index: number, args: string): Json {
+    const timer = this.timers[index - 1] as Json;
+    if (args) {
+      try {
+        Object.assign(timer, JSON.parse(args));
+      } catch {
+        return { Command: 'Error' };
+      }
+    }
+    return { [`Timer${index}`]: { ...timer } };
+  }
+
+  private scheduleRestart(): void {
+    if (this.restartTimer || this.stopped) return;
+    this.restartTimer = setTimeout(() => void this.restart(), this.opts.restartDelayMs ?? 50);
+  }
+
+  private async restart(): Promise<void> {
+    this.down = true;
+    const url = this.mqttUrl;
+    if (this.client) await this.disconnectMqtt().catch(() => undefined);
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null;
+      if (this.stopped) return;
+      this.down = false;
+      this.restarts++;
+      this.bootAt = Date.now();
+      this.uptimeBase = 0;
+      if (url) void this.connectMqtt(url).catch(() => undefined);
+    }, this.opts.downtimeMs ?? 200);
+  }
+
+  private discoveryConfig(): Json {
+    return {
+      ip: this.opts.advertiseIp === false ? '' : this.bindHost,
       dn: this.values.DeviceName,
       fn: [this.values.FriendlyName1, null, null],
       hn: `${this.topic}-1234`,
@@ -158,6 +335,11 @@ export class FakeTasmota {
   }
 
   private handleHttp(req: IncomingMessage, res: ServerResponse): void {
+    if (this.down) {
+      // Neustart: Verbindung hart abbrechen wie ein nicht erreichbares Gerät.
+      req.socket.destroy();
+      return;
+    }
     const url = new URL(req.url ?? '/', 'http://fake');
     if (url.pathname !== '/cm') {
       res.writeHead(404).end();
@@ -169,7 +351,8 @@ export class FakeTasmota {
       res.end(JSON.stringify({ WARNING: 'Need user=<username>&password=<password>' }));
       return;
     }
-    const { payload } = this.execute(url.searchParams.get('cmnd') ?? '');
+    const results = this.execute(url.searchParams.get('cmnd') ?? '');
+    const payload = results.length === 1 ? results[0]?.payload : Object.assign({}, ...results.map((r) => r.payload));
     setTimeout(() => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(payload));

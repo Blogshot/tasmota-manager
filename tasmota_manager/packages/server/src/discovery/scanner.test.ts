@@ -112,4 +112,12 @@ describe('HttpScanner', () => {
     await expect(scanner.scan(['127.0.0.1/32'])).rejects.toThrow();
     await first;
   });
+
+  it('speichert die Sensoren aus Status 10', async () => {
+    const sensorFake = await new FakeTasmota({ mac: 'AABBCC000007', sensors: { ENERGY: { Power: 5 } } }).start();
+    fakes.push(sensorFake);
+    const scanner = new HttpScanner(http, registry, () => null, () => null, { port: sensorFake.port, timeoutMs: 500 });
+    await scanner.probe('127.0.0.1');
+    expect(registry.getSensors('AABBCC000007')).toMatchObject({ StatusSNS: { ENERGY: { Power: 5 } } });
+  });
 });

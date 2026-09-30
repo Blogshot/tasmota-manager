@@ -33,6 +33,11 @@ describe('buildTopic', () => {
 });
 
 describe('matchesResponse', () => {
+  it('akzeptiert für Backlog die erste RESULT-Nachricht', () => {
+    expect(matchesResponse('Backlog', 'RESULT', { MqttHost: 'x' })).toBe(true);
+    expect(matchesResponse('Backlog', 'STATUS0', {})).toBe(false);
+  });
+
   it('ordnet Status-Befehle STATUS-Topics zu', () => {
     expect(matchesResponse('Status', 'STATUS0', {})).toBe(true);
     expect(matchesResponse('Status', 'RESULT', {})).toBe(false);

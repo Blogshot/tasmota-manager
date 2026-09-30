@@ -48,7 +48,10 @@ export class DeviceGateway {
 
   private channelsFor(device: Device): Channel[] {
     const channels: Channel[] = [];
-    if (this.deps.mqtt?.status === 'connected' && device.mqttTopic && device.channels.includes('mqtt')) channels.push('mqtt');
+    // Mit SetOption4 1 antwortet Tasmota nicht auf RESULT; die Antwortzuordnung per MQTT funktioniert dann nicht.
+    if (!device.setOption4 && this.deps.mqtt?.status === 'connected' && device.mqttTopic && device.channels.includes('mqtt')) {
+      channels.push('mqtt');
+    }
     if (device.ip) channels.push('http');
     return channels;
   }

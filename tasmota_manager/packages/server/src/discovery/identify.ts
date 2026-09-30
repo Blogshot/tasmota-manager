@@ -24,5 +24,11 @@ export async function identifyHost(
       // Modulname ist optional.
     }
   }
-  return registry.upsert(info, { channel: 'http', statusJson: payload });
+  let sensors: unknown;
+  try {
+    sensors = await http.send({ host, password }, 'Status 10', timeoutMs);
+  } catch {
+    // Sensoren sind optional (nur für Namensvorschläge).
+  }
+  return registry.upsert(info, { channel: 'http', statusJson: payload, sensorsJson: sensors });
 }
