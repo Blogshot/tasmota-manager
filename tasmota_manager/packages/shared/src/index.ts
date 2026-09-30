@@ -50,6 +50,8 @@ export const DeviceSchema = z.object({
   hasPasswordOverride: z.boolean(),
   tags: z.array(z.string()),
   setOption4: z.boolean(),
+  /** Schaltzustand je Relais bzw. Licht (Index 0 = POWER/POWER1); leer, wenn das Gerät nichts schaltet. */
+  power: z.array(z.boolean()),
   ha: HaLinkSchema.nullable(),
   nameSuggestion: z.string().nullable(),
   pendingCount: z.number(),

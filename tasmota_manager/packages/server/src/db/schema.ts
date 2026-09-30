@@ -20,6 +20,7 @@ export const devices = sqliteTable('devices', {
   channels: text('channels', { mode: 'json' }).$type<Channel[]>().notNull().default([]),
   httpFailures: integer('http_failures').notNull().default(0),
   lastSeen: text('last_seen'),
+  power: text('power', { mode: 'json' }).$type<boolean[]>(),
   statusJson: text('status_json', { mode: 'json' }).$type<unknown>(),
   sensorsJson: text('sensors_json', { mode: 'json' }).$type<unknown>(),
   passwordOverride: text('password_override'),

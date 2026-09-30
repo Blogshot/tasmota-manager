@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  hasSetOption4,
-  normalizeMac,
-  parseDiscoveryConfig,
-  parseModule,
-  parseState,
-  parseStatus0,
-  parseVersion,
-  safeJson,
-} from './parse';
+import { hasSetOption4, normalizeMac, parseDiscoveryConfig, parseModule, parsePower, parseState, parseStatus0, parseVersion, safeJson } from './parse';
 
 const STATUS0 = {
   Status: { Module: 1, DeviceName: 'Keller', FriendlyName: ['Keller-Licht'], Topic: 'keller', Power: '0' },
@@ -49,6 +40,7 @@ describe('parseStatus0', () => {
       flashSize: 4096,
       rssi: -61,
       uptimeSec: 3600,
+      power: [],
       firmware: '14.2.0',
       variant: 'tasmota',
     });
@@ -110,6 +102,9 @@ describe('parseState / parseModule / safeJson', () => {
   it('liest Laufzeitwerte aus STATE', () => {
     expect(parseState({ UptimeSec: 200, Wifi: { Signal: -55 } })).toEqual({ rssi: -55, uptimeSec: 200 });
   });
+  it('liest Schaltzustände aus STATE', () => {
+    expect(parseState({ UptimeSec: 200, Wifi: { Signal: -55 }, POWER1: 'ON', POWER2: 'OFF' }).power).toEqual({ 0: true, 1: false });
+  });
   it('liest den Modulnamen', () => {
     expect(parseModule({ Module: { '1': 'Sonoff Basic' } })).toBe('Sonoff Basic');
     expect(parseModule({ Module: 'x' })).toBeNull();
@@ -126,5 +121,26 @@ describe('hasSetOption4', () => {
     expect(hasSetOption4({ StatusLOG: { SetOption: ['00008019'] } })).toBe(true);
     expect(hasSetOption4({ StatusLOG: {} })).toBe(false);
     expect(hasSetOption4(null)).toBe(false);
+  });
+});
+
+describe('parsePower', () => {
+  it('liest POWER und POWERn als Relais-Index', () => {
+    expect(parsePower({ POWER: 'ON' })).toEqual({ 0: true });
+    expect(parsePower({ POWER1: 'OFF', POWER2: 'ON', Dimmer: 50 })).toEqual({ 0: false, 1: true });
+  });
+  it('ignoriert andere Werte und Nicht-Objekte', () => {
+    expect(parsePower({ POWER: 'blink', PowerOnState: 3 })).toEqual({});
+    expect(parsePower('ON')).toEqual({});
+  });
+});
+
+describe('parseStatus0 (Schaltzustand)', () => {
+  it('liefert den Zustand aller Relais als Liste', () => {
+    const sts = { ...STATUS0.StatusSTS, POWER1: 'ON', POWER2: 'OFF' };
+    expect(parseStatus0({ ...STATUS0, StatusSTS: sts })?.power).toEqual([true, false]);
+  });
+  it('liefert eine leere Liste für Geräte ohne Relais', () => {
+    expect(parseStatus0(STATUS0)?.power).toEqual([]);
   });
 });

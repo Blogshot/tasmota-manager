@@ -56,6 +56,11 @@ describe('DeviceGateway', () => {
     expect(http.calls).toEqual([]);
   });
 
+  it('übernimmt den Schaltzustand aus der Antwort ins Inventar', async () => {
+    await gateway.send(MAC, 'Power TOGGLE');
+    expect(registry.get(MAC)?.power).toEqual([true]);
+  });
+
   it('nutzt HTTP, wenn der Broker getrennt ist', async () => {
     mqtt.status = 'disconnected';
     expect((await gateway.send(MAC, 'Power')).channel).toBe('http');

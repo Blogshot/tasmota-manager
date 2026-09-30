@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import type { MqttStatus } from '@tm/shared';
 import { type MqttClient, connect } from 'mqtt';
 import { buildTopic, isRejected, matchesResponse, splitCommand } from '../tasmota/commands';
-import { type DeviceInfo, isObj, parseDiscoveryConfig, safeJson } from '../tasmota/parse';
+import { type DeviceInfo, isObj, parseDiscoveryConfig, parsePower, safeJson } from '../tasmota/parse';
 import { TransportError } from './errors';
 
 export interface MqttTarget {
@@ -27,6 +27,8 @@ type MqttEvents = {
   discovery: [DeviceInfo];
   lwt: [topic: string, online: boolean];
   state: [topic: string, payload: unknown];
+  /** Schaltvorgang, egal wer ihn ausgelöst hat (App, Taster, Home Assistant). */
+  power: [topic: string, power: Record<number, boolean>];
 };
 
 interface Watch {
@@ -182,6 +184,10 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
         const pending = this.pending.get(watch.topic);
         const payload = safeJson(text);
         const suffix = topic.slice(watch.stat.length);
+        if (suffix === 'RESULT') {
+          const power = parsePower(payload);
+          if (Object.keys(power).length > 0) this.emit('power', watch.topic, power);
+        }
         if (pending?.blocks && /^STATUS\d*$/.test(suffix)) {
           // Tasmota beantwortet `Status 0` per MQTT mit einer Nachricht pro Block; STATUS11 schließt die Blöcke ab, die wir auswerten.
           if (isObj(payload)) Object.assign(pending.blocks, payload);

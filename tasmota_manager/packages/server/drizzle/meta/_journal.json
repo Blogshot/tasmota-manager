@@ -15,6 +15,13 @@
       "when": 1790710233280,
       "tag": "0001_plan2",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790763999796,
+      "tag": "0002_power",
+      "breakpoints": true
     }
   ]
 }

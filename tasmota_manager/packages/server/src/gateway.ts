@@ -1,6 +1,7 @@
 import type { Channel, Device } from '@tm/shared';
 import type { DeviceRegistry } from './registry';
 import { isQuery } from './tasmota/commands';
+import { parsePower } from './tasmota/parse';
 import { TransportError } from './transport/errors';
 import type { HttpSender } from './transport/http';
 import type { MqttSender } from './transport/mqtt';
@@ -35,6 +36,8 @@ export class DeviceGateway {
       try {
         const response = await this.sendVia(channel, device, command, timeoutMs);
         this.deps.registry.markReachable(id, channel);
+        const power = parsePower(response);
+        if (Object.keys(power).length > 0) this.deps.registry.updateRuntime(id, { power });
         return { channel, response };
       } catch (err) {
         if (!(err instanceof TransportError)) throw err;

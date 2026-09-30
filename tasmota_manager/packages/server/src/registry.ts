@@ -3,8 +3,8 @@ import type { Channel, Device } from '@tm/shared';
 import { and, eq, ne } from 'drizzle-orm';
 import type { Db } from './db';
 import { deviceTags, devices, tags } from './db/schema';
-import type { DeviceInfo } from './tasmota/parse';
-import { hasSetOption4 } from './tasmota/parse';
+import type { DeviceInfo, RuntimeValues } from './tasmota/parse';
+import { hasSetOption4, mergePower } from './tasmota/parse';
 
 type DeviceRow = typeof devices.$inferSelect;
 type DeviceInsert = typeof devices.$inferInsert;
@@ -156,9 +156,12 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
     }
   }
 
-  updateRuntime(id: string, values: { rssi?: number; uptimeSec?: number }): Device | null {
-    if (!this.row(id)) return null;
-    const fields = Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined));
+  updateRuntime(id: string, values: RuntimeValues): Device | null {
+    const row = this.row(id);
+    if (!row) return null;
+    const { power, ...rest } = values;
+    const fields: Partial<DeviceInsert> = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
+    if (power) fields.power = mergePower(row.power ?? [], power);
     this.db
       .update(devices)
       .set({ ...fields, lastSeen: this.now().toISOString() })
@@ -276,6 +279,7 @@ function toDevice(row: DeviceRow, tagNames: string[]): Device {
     hasPasswordOverride: Boolean(row.passwordOverride),
     tags: tagNames,
     setOption4: hasSetOption4(row.statusJson),
+    power: row.power ?? [],
     ha: null,
     nameSuggestion: null,
     pendingCount: 0,

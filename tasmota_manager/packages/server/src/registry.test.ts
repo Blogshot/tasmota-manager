@@ -121,6 +121,15 @@ describe('DeviceRegistry', () => {
     expect(registry.updateRuntime('NOPE', { rssi: -30 })).toBeNull();
   });
 
+  it('merkt sich den Schaltzustand und führt Teil-Updates zusammen', () => {
+    expect(registry.upsert({ mac: MAC_A, name: 'A' }).power).toEqual([]);
+    expect(registry.upsert({ mac: MAC_A, power: [true, false] }).power).toEqual([true, false]);
+    expect(registry.updateRuntime(MAC_A, { power: { 1: true } })?.power).toEqual([true, true]);
+    // Ohne Angabe bleibt der Zustand erhalten.
+    expect(registry.updateRuntime(MAC_A, { rssi: -40 })?.power).toEqual([true, true]);
+    expect(registry.upsert({ mac: MAC_A, name: 'A2' }).power).toEqual([true, true]);
+  });
+
   it('setAuthRequired setzt und löscht authRequired', () => {
     registry.upsert({ mac: MAC_A, name: 'A' });
     let device = registry.setAuthRequired(MAC_A, true);

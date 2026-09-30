@@ -54,6 +54,14 @@ describe('MqttDiscovery', () => {
     expect(registry.get(MAC)?.uptimeSec).toBe(200);
   });
 
+  it('übernimmt Schaltvorgänge, die nicht von der App ausgelöst wurden', async () => {
+    await fake.connectMqtt(broker.url);
+    await waitFor(() => registry.get(MAC)?.chip);
+    expect(registry.get(MAC)?.power).toEqual([false]);
+    await fake.pressButton();
+    await waitFor(() => registry.get(MAC)?.power[0] === true);
+  });
+
   it('setzt Geräte bei LWT Offline offline', async () => {
     await fake.connectMqtt(broker.url);
     await waitFor(() => registry.get(MAC)?.online);

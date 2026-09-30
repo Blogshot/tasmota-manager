@@ -38,6 +38,11 @@ export class MqttDiscovery {
       if (!device.channels.includes('mqtt')) this.registry.markReachable(device.id, 'mqtt');
     });
 
+    this.mqtt.on('power', (topic, power) => {
+      const device = this.registry.findByTopic(topic);
+      if (device) this.registry.updateRuntime(device.id, { power });
+    });
+
     this.mqtt.on('status', (status) => {
       if (status === 'connected') return;
       for (const device of this.registry.list()) {

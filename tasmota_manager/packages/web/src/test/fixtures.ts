@@ -22,6 +22,7 @@ export function makeDevice(partial: Partial<Device> = {}): Device {
     hasPasswordOverride: false,
     tags: [],
     setOption4: false,
+    power: [],
     ha: null,
     nameSuggestion: null,
     pendingCount: 0,

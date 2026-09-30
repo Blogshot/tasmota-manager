@@ -7,6 +7,7 @@ import { useT } from '@/lib/i18n';
 import { formatUptime } from './format';
 import { HaAutomationLinks, HaEntityLinks } from './HaLinks';
 import { NameCell } from './NameCell';
+import { PowerCell } from './PowerCell';
 import { StatusDot } from './StatusDot';
 
 const dash = (v: string | number | null) => (v == null || v === '' ? '—' : v);
@@ -37,6 +38,12 @@ export function useDeviceColumns(): ColumnDef<Device>[] {
       },
       { accessorKey: 'online', header: t('devices.col.status'), sortingFn: 'basic', cell: ({ row }) => <StatusDot device={row.original} /> },
       { accessorKey: 'name', header: t('devices.col.name'), cell: ({ row }) => <NameCell device={row.original} /> },
+      {
+        id: 'power',
+        header: t('devices.col.power'),
+        accessorFn: (d) => d.power.filter(Boolean).length,
+        cell: ({ row }) => <PowerCell device={row.original} />,
+      },
       {
         accessorKey: 'ip',
         header: t('devices.col.ip'),

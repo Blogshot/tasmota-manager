@@ -14,6 +14,8 @@ export interface DeviceInfo {
   flashSize?: number;
   rssi?: number;
   uptimeSec?: number;
+  /** Zustand aller Relais in Reihenfolge; nur aus einem vollständigen Status. */
+  power?: boolean[];
 }
 
 type Json = Record<string, unknown>;
@@ -52,6 +54,18 @@ export function parseVersion(version: unknown): { firmware?: string; variant?: s
   return { firmware: m[1], variant: m[2]?.replace(/^release-/, '') };
 }
 
+/** Liest `POWER`/`POWERn` (auch von Lichtern) als Relais-Index → an/aus. */
+export function parsePower(payload: unknown): Record<number, boolean> {
+  const power: Record<number, boolean> = {};
+  if (!isObj(payload)) return power;
+  for (const [key, value] of Object.entries(payload)) {
+    const m = /^POWER(\d*)$/.exec(key);
+    if (!m || (value !== 'ON' && value !== 'OFF')) continue;
+    power[m[1] ? Number(m[1]) - 1 : 0] = value === 'ON';
+  }
+  return power;
+}
+
 export function parseStatus0(payload: unknown): DeviceInfo | null {
   if (!isObj(payload)) return null;
   const status = obj(payload.Status);
@@ -73,6 +87,7 @@ export function parseStatus0(payload: unknown): DeviceInfo | null {
     flashSize: num(mem.FlashSize),
     rssi: num(obj(sts.Wifi).Signal),
     uptimeSec: num(sts.UptimeSec),
+    power: mergePower([], parsePower(sts)),
     ...parseVersion(fwr.Version),
   };
 }
@@ -95,9 +110,30 @@ export function parseDiscoveryConfig(payload: unknown): DeviceInfo | null {
   };
 }
 
-export function parseState(payload: unknown): { rssi?: number; uptimeSec?: number } {
+/** Trägt einzelne Relais-Zustände in die Liste ein; Lücken gelten als aus. */
+export function mergePower(current: readonly boolean[], partial: Record<number, boolean>): boolean[] {
+  const next = [...current];
+  for (const [index, on] of Object.entries(partial)) {
+    while (next.length <= Number(index)) next.push(false);
+    next[Number(index)] = on;
+  }
+  return next;
+}
+
+export interface RuntimeValues {
+  rssi?: number;
+  uptimeSec?: number;
+  power?: Record<number, boolean>;
+}
+
+export function parseState(payload: unknown): RuntimeValues {
   if (!isObj(payload)) return {};
-  return { rssi: num(obj(payload.Wifi).Signal), uptimeSec: num(payload.UptimeSec) };
+  const power = parsePower(payload);
+  return {
+    rssi: num(obj(payload.Wifi).Signal),
+    uptimeSec: num(payload.UptimeSec),
+    ...(Object.keys(power).length > 0 ? { power } : {}),
+  };
 }
 
 export function parseModule(payload: unknown): string | null {
