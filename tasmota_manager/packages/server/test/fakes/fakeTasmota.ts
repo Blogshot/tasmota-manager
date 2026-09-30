@@ -46,6 +46,31 @@ const RESTART_KEYS = new Set(['MQTTHOST', 'MQTTPORT', 'MQTTUSER', 'MQTTPASSWORD'
 const isOn = (arg: string): boolean => ['1', 'ON', 'TRUE'].includes(arg.toUpperCase());
 const unquote = (arg: string): string => (arg === '""' ? '' : arg);
 const result = (payload: Json): FakeResult => ({ suffix: 'RESULT', payload });
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+/** Wie CmndTimezone: Stunden -13…14 mit optionalen Minuten, alles ab 15 wird zu 99; gemeldet wird „+01:00" bzw. 99. */
+function firmwareTimezone(args: string, current: string): string {
+  const hours = Number.parseInt(args, 10);
+  if (!Number.isFinite(hours) || hours < -13) return current;
+  if (hours >= 15) return '99';
+  const minutes = Math.min(Number.parseInt(args.split(':')[1] ?? '', 10) || 0, 59);
+  return `${hours < 0 ? '-' : '+'}${pad(Math.abs(hours))}:${pad(minutes)}`;
+}
+
+/**
+ * Wie die Timer-Firmware: gespeichert werden Minuten, ein „-" bedeutet +12 h. Gemeldet wird bei Sonnenauf-/-untergang
+ * (Modus 1/2) ein negativer Versatz mit „-", ein positiver ohne Vorzeichen; bei Modus 0 nie ein Vorzeichen.
+ */
+function firmwareTimerTime(time: unknown, mode: unknown): string {
+  const [rawHours = '', rawMinutes = ''] = String(time ?? '').split(':');
+  const negative = rawHours.includes('-');
+  let hours = (Number.parseInt(rawHours.replace('-', ''), 10) || 0) + (negative ? 12 : 0);
+  if (hours > 23) hours = 23;
+  const minutes = Math.min(Math.max(Number.parseInt(rawMinutes, 10) || 0, 0), 59);
+  const sun = Number(mode) === 1 || Number(mode) === 2;
+  if (sun && hours > 11) return `-${pad(hours - 12)}:${pad(minutes)}`;
+  return `${pad(hours)}:${pad(minutes)}`;
+}
 
 /** Simuliert ein Tasmota-Gerät mit HTTP-API (/cm), MQTT-Anbindung und Neustart-Verhalten. */
 export class FakeTasmota {
@@ -261,9 +286,11 @@ export class FakeTasmota {
     if (!key) return result({ Command: 'Unknown' });
     if (args && !(this.opts.ignore ?? []).includes(key)) {
       const current = this.values[key];
-      this.values[key] = current === 'ON' || current === 'OFF' ? (isOn(args) ? 'ON' : 'OFF') : unquote(args);
+      if (key === 'Timezone') this.values[key] = firmwareTimezone(args, current ?? '99');
+      else this.values[key] = current === 'ON' || current === 'OFF' ? (isOn(args) ? 'ON' : 'OFF') : unquote(args);
       if (RESTART_KEYS.has(upper)) this.scheduleRestart();
     }
+    if (key === 'Timezone' && this.values[key] === '99') return result({ Timezone: 99 });
     return result({ [key]: key === 'MqttPassword' ? '****' : this.values[key] });
   }
 
@@ -294,6 +321,7 @@ export class FakeTasmota {
         return { Command: 'Error' };
       }
     }
+    timer.Time = firmwareTimerTime(timer.Time, timer.Mode);
     return { [`Timer${index}`]: { ...timer } };
   }
 

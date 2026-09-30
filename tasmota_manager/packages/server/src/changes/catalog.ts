@@ -35,6 +35,14 @@ export function extractValue(def: SettingDef, response: unknown): string | null 
 const leadingNumber = (value: string): number => Number.parseFloat(/-?\d+(\.\d+)?/.exec(value)?.[0] ?? 'NaN');
 const normalizeRule = (value: string): string => value.replace(/\s+/g, ' ').trim().toLowerCase();
 
+/** Zeitzone in Minuten: „1", „+1" und „+01:00" sind dasselbe. 99 (Sommerzeitregeln) ergibt einen Wert außerhalb jeder echten Zeitzone. */
+function timezoneMinutes(value: string): number | null {
+  const match = /^([+-]?)(\d{1,2})(?::(\d{2}))?$/.exec(value.trim());
+  if (!match) return null;
+  const minutes = Number(match[2]) * 60 + Number(match[3] ?? 0);
+  return match[1] === '-' ? -minutes : minutes;
+}
+
 export function valuesEqual(def: SettingDef, expected: string, actual: string | null): boolean {
   if (actual === null) return false;
   switch (def.kind) {
@@ -44,6 +52,10 @@ export function valuesEqual(def: SettingDef, expected: string, actual: string | 
       return onOff(expected) !== null && onOff(expected) === onOff(actual);
     case 'coord':
       return Math.abs(Number(expected) - Number(actual)) < 1e-4;
+    case 'timezone': {
+      const minutes = timezoneMinutes(expected);
+      return minutes !== null && minutes === timezoneMinutes(actual);
+    }
     case 'rule':
       return normalizeRule(expected) === normalizeRule(actual);
     case 'timer':

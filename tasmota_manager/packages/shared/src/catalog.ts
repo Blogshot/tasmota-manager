@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export type SettingKind = 'text' | 'int' | 'bool' | 'coord' | 'rule' | 'timer';
+export type SettingKind = 'text' | 'int' | 'bool' | 'coord' | 'timezone' | 'rule' | 'timer';
 export type SettingGroup =
   | 'names'
   | 'power'
@@ -48,16 +48,24 @@ const coord = (limit: number) =>
     .regex(/^-?\d{1,3}(\.\d{1,6})?$/, { message: 'Dezimalzahl erwartet' })
     .refine((v) => Math.abs(Number(v)) <= limit, { message: `Erlaubt: ±${limit}` });
 
-export const TimerSchema = z.object({
-  Enable: z.int().min(0).max(1),
-  Mode: z.int().min(0).max(2),
-  Time: z.string().regex(/^[+-]?([01]\d|2[0-3]):[0-5]\d$/),
-  Window: z.int().min(0).max(15),
-  Days: z.string().regex(/^[01]{7}$/),
-  Repeat: z.int().min(0).max(1),
-  Output: z.int().min(1).max(16),
-  Action: z.int().min(0).max(3),
-});
+// Die Firmware speichert Minuten: ein „-" bedeutet +12 h. Eine Uhrzeit mit Minus oder ein Versatz ab 12 h käme deshalb
+// als anderer Wert zurück und würde beim Prüfen als Abweichung gelten.
+export const TimerSchema = z
+  .object({
+    Enable: z.int().min(0).max(1),
+    Mode: z.int().min(0).max(2),
+    Time: z.string().regex(/^[+-]?([01]\d|2[0-3]):[0-5]\d$/),
+    Window: z.int().min(0).max(15),
+    Days: z.string().regex(/^[01]{7}$/),
+    Repeat: z.int().min(0).max(1),
+    Output: z.int().min(1).max(16),
+    Action: z.int().min(0).max(3),
+  })
+  .refine((t) => t.Mode !== 0 || !t.Time.startsWith('-'), { path: ['Time'], message: 'Uhrzeit ohne Vorzeichen erwartet' })
+  .refine((t) => t.Mode === 0 || Number(t.Time.replace(/^[+-]/, '').slice(0, 2)) <= 11, {
+    path: ['Time'],
+    message: 'Versatz höchstens ±11:59',
+  });
 export type Timer = z.infer<typeof TimerSchema>;
 
 export const DEFAULT_TIMER: Timer = { Enable: 0, Mode: 0, Time: '00:00', Window: 0, Days: '0000000', Repeat: 0, Output: 1, Action: 0 };
@@ -69,12 +77,17 @@ export function normalizeDays(value: unknown): string {
   return [...s].map((c) => (c === '0' || c === '-' ? '0' : '1')).join('');
 }
 
+/** Tasmota meldet einen positiven Versatz und Uhrzeiten ohne Vorzeichen; ein führendes „+" trägt keine Information. */
+export function normalizeTimerTime(time: string): string {
+  return time.replace(/^\+/, '');
+}
+
 export function normalizeTimer(raw: Record<string, unknown>): Timer {
   const n = (v: unknown, fallback: number) => (v !== null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : fallback);
   return {
     Enable: n(raw.Enable, 0),
     Mode: n(raw.Mode, 0),
-    Time: typeof raw.Time === 'string' ? raw.Time : DEFAULT_TIMER.Time,
+    Time: typeof raw.Time === 'string' ? normalizeTimerTime(raw.Time) : DEFAULT_TIMER.Time,
     Window: n(raw.Window, 0),
     Days: normalizeDays(raw.Days),
     Repeat: n(raw.Repeat, 0),
@@ -83,16 +96,20 @@ export function normalizeTimer(raw: Record<string, unknown>): Timer {
   };
 }
 
-const timerValue = z.string().refine(
-  (v) => {
-    try {
-      return TimerSchema.safeParse(JSON.parse(v)).success;
-    } catch {
-      return false;
-    }
-  },
-  { message: 'Ungültiger Timer' },
-);
+// Vorgemerkt und gesendet wird die normalisierte Form, also genau das, was das Gerät danach zurückmeldet.
+const timerValue = z.string().transform((v, ctx) => {
+  let parsed: ReturnType<typeof TimerSchema.safeParse> | null = null;
+  try {
+    parsed = TimerSchema.safeParse(JSON.parse(v));
+  } catch {
+    // kein JSON
+  }
+  if (!parsed?.success) {
+    ctx.issues.push({ code: 'custom', message: 'Ungültiger Timer', input: v });
+    return z.NEVER;
+  }
+  return JSON.stringify(normalizeTimer(parsed.data));
+});
 const ruleText = z.string().max(MAX_RULE_LENGTH, { message: `Höchstens ${MAX_RULE_LENGTH} Zeichen` });
 
 const setting = (
@@ -120,7 +137,7 @@ export const SETTINGS: readonly SettingDef[] = [
   setting(
     'Timezone',
     'time',
-    'text',
+    'timezone',
     z
       .string()
       .trim()

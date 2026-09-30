@@ -67,6 +67,31 @@ describe('valuesEqual', () => {
     expect(valuesEqual(def('LedState'), '1', null)).toBe(false);
   });
 
+  it('vergleicht Zeitzonen als Minuten, 99 bleibt ein eigener Wert', () => {
+    const tz = def('Timezone');
+    expect(valuesEqual(tz, '1', '+01:00')).toBe(true);
+    expect(valuesEqual(tz, '+1', '+01:00')).toBe(true);
+    expect(valuesEqual(tz, '-5', '-05:00')).toBe(true);
+    expect(valuesEqual(tz, '+05:30', '+05:30')).toBe(true);
+    expect(valuesEqual(tz, '+5:30', '+05:30')).toBe(true);
+    expect(valuesEqual(tz, '99', '99')).toBe(true);
+    expect(valuesEqual(tz, '0', '+00:00')).toBe(true);
+    expect(valuesEqual(tz, '99', '+01:00')).toBe(false);
+    expect(valuesEqual(tz, '1', '99')).toBe(false);
+    expect(valuesEqual(tz, '1', '+02:00')).toBe(false);
+    expect(valuesEqual(tz, '-5', '+05:00')).toBe(false);
+    expect(valuesEqual(tz, '1', 'kaputt')).toBe(false);
+    expect(extractValue(tz, { Timezone: 99 })).toBe('99');
+    expect(extractValue(tz, { Timezone: '+01:00' })).toBe('+01:00');
+  });
+
+  it('ignoriert beim Timer-Vergleich ein führendes Plus, ein Minus nicht', () => {
+    const timer = { Enable: 1, Mode: 1, Time: '+00:30', Window: 0, Days: '1111111', Repeat: 1, Output: 1, Action: 1 };
+    const expected = JSON.stringify(timer);
+    expect(valuesEqual(def('Timer1'), expected, JSON.stringify({ ...timer, Time: '00:30' }))).toBe(true);
+    expect(valuesEqual(def('Timer1'), expected, JSON.stringify({ ...timer, Time: '-00:30' }))).toBe(false);
+  });
+
   it('vergleicht Timer unabhängig vom Tagesformat', () => {
     const a = JSON.stringify({ Enable: 1, Mode: 0, Time: '06:30', Window: 0, Days: '0111110', Repeat: 1, Output: 1, Action: 1 });
     const b = JSON.stringify({ Enable: 1, Mode: 0, Time: '06:30', Window: 0, Days: '-MTWTF-', Repeat: 1, Output: 1, Action: 1 });

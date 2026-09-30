@@ -108,6 +108,28 @@ describe('Timer', () => {
     expect(TimerSchema.safeParse({ ...timer, Time: '25:00' }).success).toBe(false);
   });
 
+  it('entfernt ein führendes Plus aus der Timer-Zeit, weil das Gerät es nie zurückmeldet', () => {
+    const timer = { Enable: 1, Mode: 1, Time: '+00:30', Window: 0, Days: '0111110', Repeat: 1, Output: 1, Action: 1 };
+    expect(normalizeTimer(timer).Time).toBe('00:30');
+    expect(normalizeTimer({ ...timer, Time: '-00:30' }).Time).toBe('-00:30');
+    const staged = def('Timer3').schema.safeParse(JSON.stringify(timer));
+    expect(JSON.parse(staged.data ?? '{}')).toEqual({ ...timer, Time: '00:30' });
+    const clock = def('Timer3').schema.safeParse(JSON.stringify({ ...timer, Mode: 0, Time: '+06:30' }));
+    expect(JSON.parse(clock.data ?? '{}')).toMatchObject({ Mode: 0, Time: '06:30' });
+  });
+
+  it('lehnt Timer-Zeiten ab, die das Gerät anders zurückmelden würde', () => {
+    const timer = { Enable: 1, Mode: 0, Time: '06:30', Window: 0, Days: '0111110', Repeat: 1, Output: 1, Action: 1 };
+    // Uhrzeit mit Minus: die Firmware macht daraus +12 h.
+    expect(TimerSchema.safeParse({ ...timer, Time: '-06:30' }).success).toBe(false);
+    expect(TimerSchema.safeParse({ ...timer, Time: '23:59' }).success).toBe(true);
+    // Versatz: nur ±11:59, ab 12 h meldet die Firmware einen negativen Versatz.
+    expect(TimerSchema.safeParse({ ...timer, Mode: 2, Time: '-11:59' }).success).toBe(true);
+    expect(TimerSchema.safeParse({ ...timer, Mode: 1, Time: '11:59' }).success).toBe(true);
+    expect(TimerSchema.safeParse({ ...timer, Mode: 1, Time: '12:00' }).success).toBe(false);
+    expect(def('Timer3').schema.safeParse(JSON.stringify({ ...timer, Time: '-06:30' })).success).toBe(false);
+  });
+
   it('begrenzt Rules auf 511 Zeichen', () => {
     expect(def('Rule1').schema.safeParse('x'.repeat(511)).success).toBe(true);
     expect(def('Rule1').schema.safeParse('x'.repeat(512)).success).toBe(false);

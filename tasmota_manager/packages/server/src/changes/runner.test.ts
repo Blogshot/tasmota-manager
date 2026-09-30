@@ -116,6 +116,25 @@ describe('ApplyRunner über HTTP', () => {
     expect(c.store.forDevice(MAC)[0]?.error).toBe('verify_mismatch: Soll „5“, Ist „1“');
   });
 
+  it('meldet keine Abweichung, wenn das Gerät Zeitzone und Timer-Versatz in seinem eigenen Format zurückgibt', async () => {
+    const c = await httpSetup();
+    const sunrise = { Enable: 1, Mode: 1, Time: '+00:30', Window: 0, Days: '1111111', Repeat: 1, Output: 1, Action: 1 };
+    const clock = { ...sunrise, Mode: 0, Time: '+06:30' };
+    const item = await run(c, { settings: { Timezone: '1', Timer1: JSON.stringify(sunrise), Timer2: JSON.stringify(clock) }, source: 'form' });
+    expect(item).toMatchObject({ status: 'success', error: null });
+    expect(c.fake.values.Timezone).toBe('+01:00');
+    expect(c.fake.timers[0]).toMatchObject({ Mode: 1, Time: '00:30' });
+    expect(c.fake.timers[1]).toMatchObject({ Mode: 0, Time: '06:30' });
+    expect(c.store.count()).toBe(0);
+  });
+
+  it('meldet eine echte Abweichung der Zeitzone weiterhin', async () => {
+    const c = await httpSetup({ ignore: ['Timezone'] });
+    const item = await run(c, { settings: { Timezone: '-5' }, source: 'form' });
+    expect(item?.status).toBe('failed');
+    expect(c.store.forDevice(MAC)[0]?.error).toBe('verify_mismatch: Soll „-5“, Ist „99“');
+  });
+
   it('verhindert parallele Läufe und leere Starts', async () => {
     const c = await httpSetup();
     expect(() => c.runner.start()).toThrow(NothingToApplyError);

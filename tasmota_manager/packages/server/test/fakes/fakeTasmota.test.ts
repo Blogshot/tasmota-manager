@@ -29,6 +29,25 @@ describe('FakeTasmota', () => {
     expect(await send('Timers 0')).toEqual({ Timers: 'OFF' });
   });
 
+  it('meldet die Zeitzone wie die Firmware als ±HH:MM bzw. 99', async () => {
+    fake = await new FakeTasmota({ mac: 'AABBCC000001' }).start();
+    expect(await send('Timezone')).toEqual({ Timezone: 99 });
+    expect(await send('Timezone 1')).toEqual({ Timezone: '+01:00' });
+    expect(await send('Timezone -5')).toEqual({ Timezone: '-05:00' });
+    expect(await send('Timezone +05:30')).toEqual({ Timezone: '+05:30' });
+    expect(await send('Timezone 99')).toEqual({ Timezone: 99 });
+  });
+
+  it('meldet Timer-Zeiten wie die Firmware: positiver Versatz ohne Vorzeichen, bei Uhrzeit nie eines', async () => {
+    fake = await new FakeTasmota({ mac: 'AABBCC000001' }).start();
+    expect(await send('Timer1 {"Mode":1,"Time":"+00:30"}')).toMatchObject({ Timer1: { Mode: 1, Time: '00:30' } });
+    expect(await send('Timer1 {"Mode":2,"Time":"-00:30"}')).toMatchObject({ Timer1: { Mode: 2, Time: '-00:30' } });
+    expect(await send('Timer1 {"Mode":0,"Time":"+06:30"}')).toMatchObject({ Timer1: { Mode: 0, Time: '06:30' } });
+    // Ein „-" bedeutet in der Firmware +12 h; bei Modus 0 wird daraus eine andere Uhrzeit.
+    expect(await send('Timer1 {"Mode":0,"Time":"-06:30"}')).toMatchObject({ Timer1: { Mode: 0, Time: '18:30' } });
+    expect(await send('Timer1 {"Mode":1,"Time":"13:00"}')).toMatchObject({ Timer1: { Mode: 1, Time: '-01:00' } });
+  });
+
   it('startet nach einem Backlog mit MQTT-Einstellungen genau einmal neu', async () => {
     fake = await new FakeTasmota({ mac: 'AABBCC000001', restartDelayMs: 20, downtimeMs: 100 }).start();
     await send('Backlog MqttHost neu.local; MqttUser u1');

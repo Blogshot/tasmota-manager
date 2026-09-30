@@ -56,7 +56,7 @@ describe('MqttTransport', () => {
     const target = { topic: 'keller', fullTopic: null };
     const [a, b] = await Promise.all([mqtt.send(target, 'FriendlyName1'), mqtt.send(target, 'Timezone')]);
     expect(a).toEqual({ FriendlyName1: 'Keller' });
-    expect(b).toEqual({ Timezone: '99' });
+    expect(b).toEqual({ Timezone: 99 });
   });
 
   it('meldet rejected bei unbekanntem Befehl', async () => {

@@ -31,6 +31,8 @@ export function TimerForm({ id, value, onChange }: Props) {
   const t = useT();
   const set = <K extends keyof Timer>(key: K, v: Timer[K]) => onChange({ ...value, [key]: v });
   const sun = value.Mode !== 0;
+  // Eine Uhrzeit hat kein Vorzeichen; ein Versatz aus dem Sonnenmodus darf beim Zurückwechseln keines mitbringen.
+  const setMode = (mode: number) => onChange({ ...value, Mode: mode, Time: mode === 0 ? value.Time.replace(/^[+-]/, '') : value.Time });
   const days = t('days.short').split(',');
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -44,7 +46,7 @@ export function TimerForm({ id, value, onChange }: Props) {
       </label>
       <div className="space-y-1">
         <Label htmlFor={`${id}-mode`}>{t('timers.mode')}</Label>
-        <select id={`${id}-mode`} className={`${selectClass} w-full`} value={value.Mode} onChange={(e) => set('Mode', Number(e.target.value))}>
+        <select id={`${id}-mode`} className={`${selectClass} w-full`} value={value.Mode} onChange={(e) => setMode(Number(e.target.value))}>
           {[0, 1, 2].map((m) => (
             <option key={m} value={m}>
               {t(`timers.mode.${m}` as MessageKey)}
@@ -54,7 +56,7 @@ export function TimerForm({ id, value, onChange }: Props) {
       </div>
       <div className="space-y-1">
         <Label htmlFor={`${id}-time`}>{sun ? t('timers.offset') : t('timers.time')}</Label>
-        <Input id={`${id}-time`} value={value.Time} placeholder={sun ? '+00:30' : '06:30'} onChange={(e) => set('Time', e.target.value)} />
+        <Input id={`${id}-time`} value={value.Time} placeholder={sun ? '-00:30' : '06:30'} onChange={(e) => set('Time', e.target.value)} />
       </div>
       <div className="space-y-1">
         <Label htmlFor={`${id}-window`}>{t('timers.window')}</Label>
