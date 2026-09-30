@@ -26,6 +26,8 @@ interface RegistryEntity {
   unique_id?: string | null;
   name?: string | null;
   original_name?: string | null;
+  entity_category?: string | null;
+  disabled_by?: string | null;
 }
 
 interface Pending {
@@ -58,9 +60,14 @@ export function macOfHaDevice(device: RegistryDevice): string | null {
 
 const entityName = (e: RegistryEntity): string => e.name ?? e.original_name ?? e.entity_id;
 
+/** Nur Entitäten, die HA auf der Geräteseite unter Steuerelemente und Sensoren führt. */
+const isPrimary = (e: RegistryEntity): boolean => !e.entity_category && !e.disabled_by;
+
 /** Liest Geräte, Entitäten, Bereiche und Automationen über den HA-WebSocket; Daten nur im Speicher. */
 export class HaClient extends EventEmitter<{ changed: [] }> {
   ready = false;
+  /** Systemsprache von Home Assistant (z. B. "de"); null, solange sie nicht gelesen wurde. */
+  language: string | null = null;
   private ws: WebSocket | null = null;
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
@@ -125,14 +132,22 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
       next.set(mac, {
         deviceId: device.id,
         areaName: device.area_id ? (areaNames.get(device.area_id) ?? null) : null,
-        entities: entities.filter((e) => e.device_id === device.id).map((e) => ({ entityId: e.entity_id, name: entityName(e) })),
+        entities: entities.filter((e) => e.device_id === device.id && isPrimary(e)).map((e) => ({ entityId: e.entity_id, name: entityName(e) })),
         automations: automationIds.map((entityId) => {
           const entity = byEntityId.get(entityId);
           return { id: entity?.unique_id ?? null, entityId, name: entity ? entityName(entity) : entityId };
         }),
       });
     }
+    const language = await this.call('get_config').then(
+      (config) => (isObj(config) && typeof config.language === 'string' ? config.language : null),
+      (err: unknown) => {
+        if (!(err instanceof HaResultError)) throw err;
+        return null;
+      },
+    );
     if (this.stopped) return;
+    this.language = language ?? this.language;
     this.links = next;
     this.emit('changed');
   }

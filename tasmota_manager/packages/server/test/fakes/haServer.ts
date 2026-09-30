@@ -4,6 +4,7 @@ import { type WebSocket, WebSocketServer } from 'ws';
 export interface FakeHaData {
   devices: Array<Record<string, unknown>>;
   entities: Array<Record<string, unknown>>;
+  language?: string;
   areas: Array<Record<string, unknown>>;
   related: Record<string, { automation?: string[] }>;
 }
@@ -81,6 +82,9 @@ export class FakeHa {
           break;
         case 'config/area_registry/list':
           ok(this.data.areas);
+          break;
+        case 'get_config':
+          ok({ language: this.data.language ?? 'en' });
           break;
         case 'search/related':
           if (this.failRelated) break;

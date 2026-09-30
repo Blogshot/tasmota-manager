@@ -11,10 +11,14 @@ const data = (): FakeHaData => ({
   entities: [
     { entity_id: 'switch.bad', device_id: 'dev1', unique_id: 'x', name: null, original_name: 'Bad Schalter' },
     { entity_id: 'sensor.bad_temp', device_id: 'dev1', unique_id: 'y', name: 'Temperatur Bad', original_name: 'Temperature' },
+    { entity_id: 'sensor.bad_rssi', device_id: 'dev1', unique_id: 'd', name: null, original_name: 'RSSI', entity_category: 'diagnostic' },
+    { entity_id: 'number.bad_teleperiod', device_id: 'dev1', unique_id: 'c', name: null, original_name: 'TelePeriod', entity_category: 'config' },
+    { entity_id: 'sensor.bad_aus', device_id: 'dev1', unique_id: 'o', name: null, original_name: 'Aus', entity_category: null, disabled_by: 'user' },
     { entity_id: 'automation.licht_bad', device_id: null, unique_id: '1700000000', name: null, original_name: 'Licht Bad' },
     { entity_id: 'automation.yaml_ohne_id', device_id: null, unique_id: null, name: null, original_name: null },
   ],
   areas: [{ area_id: 'bad', name: 'Bad' }],
+  language: 'de',
   related: { dev1: { automation: ['automation.licht_bad', 'automation.yaml_ohne_id'] } },
 });
 
@@ -55,6 +59,23 @@ describe('HaClient', () => {
       ],
     });
     expect(client.link('AABBCC000002')).toMatchObject({ deviceId: 'dev2', areaName: null, entities: [], automations: [] });
+  });
+
+  it('lässt Diagnose-, Konfigurations- und deaktivierte Entitäten weg', async () => {
+    ha = await new FakeHa(data()).start();
+    client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20 });
+    client.start();
+    const link = await waitFor(() => client?.link('AABBCC112233'));
+    expect(link.entities.map((e) => e.entityId)).toEqual(['switch.bad', 'sensor.bad_temp']);
+  });
+
+  it('liest die Systemsprache von Home Assistant', async () => {
+    ha = await new FakeHa(data()).start();
+    client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20 });
+    expect(client.language).toBeNull();
+    client.start();
+    await waitFor(() => client?.link('AABBCC112233'));
+    expect(client.language).toBe('de');
   });
 
   it('lädt bei Registry-Events neu und meldet Änderungen', async () => {
