@@ -14,7 +14,7 @@ export async function identifyHost(
 ): Promise<Device> {
   const payload = await http.send({ host, password }, 'Status 0', timeoutMs);
   const info = parseStatus0(payload);
-  if (!info) throw new TransportError('rejected', `${host} liefert keinen Tasmota-Status`);
+  if (!info) throw new TransportError('rejected', `${host} returns no Tasmota status`);
   // Erreichbar ist das Gerät unter der Adresse, über die wir es gefunden haben (inkl. Port).
   info.ip = host;
   if (!registry.get(info.mac)?.module) {

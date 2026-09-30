@@ -97,8 +97,7 @@ export const CidrSchema = z
   .string()
   .trim()
   .refine((v) => (parseCidr(v)?.prefix ?? 0) >= MAX_SCAN_PREFIX, {
-    message:
-      'Ungültiger Bereich oder größer als /20 (höchstens 4096 Adressen). Trage genutzte Subnetze einzeln ein, z. B. 10.0.1.0/24.',
+    message: 'invalid.cidr',
   });
 
 export const ConcurrencySchema = z.object({
@@ -107,6 +106,18 @@ export const ConcurrencySchema = z.object({
   backup: z.int().min(1).max(20),
 });
 
+export const LANGUAGES = ['en', 'de', 'fr', 'es', 'it', 'nl'] as const;
+export type Language = (typeof LANGUAGES)[number];
+export const LanguageSettingSchema = z.enum(['auto', ...LANGUAGES]);
+export type LanguageSetting = z.infer<typeof LanguageSettingSchema>;
+
+/** Feste Auswahl oder – bei „auto" – die erkannte Sprache (z. B. "de-CH"), sonst Englisch. */
+export function resolveLanguage(setting: LanguageSetting, detected: string | null | undefined): Language {
+  if (setting !== 'auto') return setting;
+  const prefix = (detected ?? '').toLowerCase().split(/[-_]/)[0];
+  return LANGUAGES.find((l) => l === prefix) ?? 'en';
+}
+
 export const SettingsSchema = z.object({
   scanCidrs: z.array(CidrSchema).max(16),
   pollIntervalSec: z.int().min(10).max(3600),
@@ -114,6 +125,7 @@ export const SettingsSchema = z.object({
   backupRetention: z.int().min(1).max(100),
   firmwarePort: z.int().min(1024).max(65535),
   hasGlobalPassword: z.boolean(),
+  language: LanguageSettingSchema,
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 
@@ -181,7 +193,7 @@ export const StageRequestSchema = z
     source: ChangeSourceSchema,
   })
   .refine((b) => Object.keys(b.settings ?? {}).length > 0 || (b.commands?.length ?? 0) > 0, {
-    message: 'Keine Änderungen angegeben',
+    message: 'invalid.noChanges',
   });
 export type StageRequest = z.infer<typeof StageRequestSchema>;
 

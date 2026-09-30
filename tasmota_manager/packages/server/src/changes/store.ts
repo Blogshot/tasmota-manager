@@ -74,12 +74,12 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
     this.db.transaction((tx) => {
       for (const deviceId of req.deviceIds) {
         const device = this.registry.get(deviceId);
-        if (!device) throw new StageError(`Unbekanntes Gerät ${deviceId}`);
+        if (!device) throw new StageError(`Unknown device ${deviceId}`);
         const status = this.registry.getStatus(deviceId);
 
         for (const [key, raw] of Object.entries(req.settings ?? {})) {
           const def = settingDef(key);
-          if (!def) throw new StageError(`Unbekannte Einstellung ${key}`);
+          if (!def) throw new StageError(`Unknown setting ${key}`);
           const input = def.kind === 'rule' ? raw.replace(/\s*\n\s*/g, ' ').trim() : raw;
           const parsed = def.schema.safeParse(input);
           if (!parsed.success) throw new StageError(`${key}: ${prettifyError(parsed.error)}`);
@@ -107,7 +107,7 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
             ?.last ?? 0;
         for (const template of req.commands ?? []) {
           const rendered = renderPlaceholders(template, device);
-          if (!rendered.ok) throw new StageError(`Unbekannter Platzhalter {{${rendered.unknown}}}`);
+          if (!rendered.ok) throw new StageError(`Unknown placeholder {{${rendered.unknown}}}`);
           position += 1;
           tx.insert(pendingChanges)
             .values({ deviceId, kind: 'command', key: null, value: rendered.value, position, source: req.source, createdAt: now, updatedAt: now })

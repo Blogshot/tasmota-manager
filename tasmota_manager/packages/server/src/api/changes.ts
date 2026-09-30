@@ -6,7 +6,7 @@ import type { AppDeps } from './app';
 import { notFound, parseBody } from './validate';
 
 export function registerChangeRoutes(app: FastifyInstance, { store, runner, jobs, enricher }: AppDeps): void {
-  const busy = (reply: FastifyReply) => reply.code(409).send({ code: 'busy', message: 'Es läuft gerade ein Batch' });
+  const busy = (reply: FastifyReply) => reply.code(409).send({ code: 'busy', message: 'A batch is currently running' });
 
   app.get('/api/changes', async () => store.list());
 
@@ -39,7 +39,7 @@ export function registerChangeRoutes(app: FastifyInstance, { store, runner, jobs
   app.delete<{ Params: { id: string } }>('/api/changes/:id', async (req, reply) => {
     if (runner.running) return busy(reply);
     const id = Number(req.params.id);
-    if (!Number.isInteger(id) || !store.discard(id)) return reply.code(404).send(notFound('Änderung'));
+    if (!Number.isInteger(id) || !store.discard(id)) return reply.code(404).send(notFound('Change'));
     return reply.code(204).send();
   });
 

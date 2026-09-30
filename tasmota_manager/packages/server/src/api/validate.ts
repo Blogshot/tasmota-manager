@@ -9,4 +9,4 @@ export function parseBody<T>(schema: ZodType<T>, data: unknown, reply: FastifyRe
   return undefined;
 }
 
-export const notFound = (what = 'Gerät'): ApiErrorBody => ({ code: 'not_found', message: `${what} nicht gefunden` });
+export const notFound = (what = 'Device'): ApiErrorBody => ({ code: 'not_found', message: `${what} not found` });

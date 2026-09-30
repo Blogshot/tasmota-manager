@@ -160,11 +160,11 @@ describe('DeviceRegistry', () => {
   });
 
   it('Mutator auf unbekannte ID wirft Fehler', () => {
-    expect(() => registry.setAuthRequired('NOPE', true)).toThrow(/Unbekanntes Gerät/);
-    expect(() => registry.recordHttpFailure('NOPE')).toThrow(/Unbekanntes Gerät/);
-    expect(() => registry.setPasswordOverride('NOPE', 'pwd')).toThrow(/Unbekanntes Gerät/);
-    expect(() => registry.setTags('NOPE', ['tag'])).toThrow(/Unbekanntes Gerät/);
-    expect(() => registry.markReachable('NOPE', 'http')).toThrow(/Unbekanntes Gerät/);
+    expect(() => registry.setAuthRequired('NOPE', true)).toThrow(/Unknown device/);
+    expect(() => registry.recordHttpFailure('NOPE')).toThrow(/Unknown device/);
+    expect(() => registry.setPasswordOverride('NOPE', 'pwd')).toThrow(/Unknown device/);
+    expect(() => registry.setTags('NOPE', ['tag'])).toThrow(/Unknown device/);
+    expect(() => registry.markReachable('NOPE', 'http')).toThrow(/Unknown device/);
   });
 
   it('speichert Sensordaten und liefert Rohdaten gesammelt', () => {

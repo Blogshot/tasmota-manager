@@ -22,7 +22,7 @@ export function registerDeviceRoutes(app: FastifyInstance, { registry, gateway, 
     const body = parseBody(AddDeviceRequestSchema, req.body, reply);
     if (!body) return reply;
     const device = await scanner.probe(body.ip);
-    if (!device) return reply.code(422).send({ code: 'unreachable', message: `Unter ${body.ip} antwortet kein Tasmota-Gerät` });
+    if (!device) return reply.code(422).send({ code: 'unreachable', message: `No Tasmota device answers at ${body.ip}` });
     return reply.code(201).send(enricher.one(device.id) ?? device);
   });
 

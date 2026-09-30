@@ -16,7 +16,7 @@ describe('DeviceEnricher', () => {
     );
     registry.upsert({ mac: 'AABBCC000002', name: 'Tasmota' }, { statusJson: { StatusSTS: { POWER: 'ON' } } });
     const link: HaLink = { deviceId: 'dev1', areaName: 'Bad', entities: [], automations: [] };
-    const enricher = new DeviceEnricher(registry, store, { link: (mac) => (mac === 'AABBCC000001' ? link : null) });
+    const enricher = new DeviceEnricher(registry, store, { link: (mac) => (mac === 'AABBCC000001' ? link : null) }, () => 'de');
 
     store.stage({ deviceIds: ['AABBCC000002'], settings: { DeviceName: 'Flur', TelePeriod: '60' }, source: 'form' });
     const [first, second] = enricher.all().sort((a, b) => a.id.localeCompare(b.id));

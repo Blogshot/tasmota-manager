@@ -223,7 +223,7 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
 
   private requireRow(id: string): DeviceRow {
     const row = this.row(id);
-    if (!row) throw new Error(`Unbekanntes Gerät ${id}`);
+    if (!row) throw new Error(`Unknown device ${id}`);
     return row;
   }
 
@@ -251,7 +251,7 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
 
   private emitUpdated(id: string): Device {
     const device = this.get(id);
-    if (!device) throw new Error(`Unbekanntes Gerät ${id}`);
+    if (!device) throw new Error(`Unknown device ${id}`);
     this.emit('updated', device);
     return device;
   }

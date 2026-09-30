@@ -9,6 +9,7 @@ import {
   normalizeTimer,
   readFromStatus,
   renderPlaceholders,
+  resolveLanguage,
   settingDef,
 } from './index';
 
@@ -162,9 +163,22 @@ describe('Requests', () => {
     expect(StageRequestSchema.safeParse({ deviceIds: ['A'], commands: ['Power ON'], source: 'command' }).success).toBe(true);
   });
 
-  it('erklärt abgelehnte Scan-Bereiche', () => {
+  it('meldet abgelehnte Scan-Bereiche mit einem übersetzbaren Schlüssel', () => {
     const result = CidrSchema.safeParse('10.0.0.0/16');
     expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.message).toContain('/20');
+    expect(result.error?.issues[0]?.message).toBe('invalid.cidr');
+  });
+
+  it('liefert Validierungstexte als Schlüssel mit Parametern', () => {
+    expect(settingDef('PowerOnState')?.schema.safeParse('9').error?.issues[0]?.message).toBe('invalid.range|0|5');
+    expect(settingDef('Sleep')?.schema.safeParse('x').error?.issues[0]?.message).toBe('invalid.int');
+  });
+
+  it('wählt die Sprache: feste Auswahl, sonst erkannte Sprache, sonst Englisch', () => {
+    expect(resolveLanguage('fr', 'de')).toBe('fr');
+    expect(resolveLanguage('auto', 'de-CH')).toBe('de');
+    expect(resolveLanguage('auto', 'NL')).toBe('nl');
+    expect(resolveLanguage('auto', 'ja')).toBe('en');
+    expect(resolveLanguage('auto', null)).toBe('en');
   });
 });

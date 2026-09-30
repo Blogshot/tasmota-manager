@@ -8,7 +8,7 @@ import { identifyHost } from './identify';
 
 export function expandCidr(cidr: string): string[] {
   const parsed = parseCidr(cidr);
-  if (!parsed) throw new Error(`Ungültiger Bereich: ${cidr}`);
+  if (!parsed) throw new Error(`Invalid range: ${cidr}`);
   const size = 2 ** (32 - parsed.prefix);
   const first = parsed.prefix >= 31 ? 0 : 1;
   const last = parsed.prefix >= 31 ? size - 1 : size - 2;
@@ -75,7 +75,7 @@ export class HttpScanner extends EventEmitter<ScannerEvents> {
   }
 
   async scan(cidrs: string[]): Promise<{ found: number }> {
-    if (this.running) throw new Error('Es läuft bereits ein Scan');
+    if (this.running) throw new Error('A scan is already running');
     this.running = true;
     try {
       const ips = [...new Set(cidrs.flatMap(expandCidr))];

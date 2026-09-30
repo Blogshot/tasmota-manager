@@ -3,7 +3,7 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import type { Db } from '../db';
 import { jobItems, jobs } from '../db/schema';
 
-export const INTERRUPTED = 'interrupted: Die App wurde während des Batch-Laufs neu gestartet';
+export const INTERRUPTED = 'interrupted: The app was restarted during the batch run';
 
 export interface NewJobItem {
   deviceId: string;

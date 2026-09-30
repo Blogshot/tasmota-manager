@@ -79,10 +79,10 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
   }
 
   start(deviceIds?: string[]): JobView {
-    if (this.current) throw new RunnerBusyError('Es läuft bereits ein Batch');
+    if (this.current) throw new RunnerBusyError('A batch is already running');
     const { store, jobs, registry } = this.deps;
     const ids = [...new Set(deviceIds ?? store.deviceIdsWithChanges())].filter((id) => store.forDevice(id).length > 0);
-    if (ids.length === 0) throw new NothingToApplyError('Keine ausstehenden Änderungen');
+    if (ids.length === 0) throw new NothingToApplyError('No pending changes');
     store.clearErrors(ids);
     const job = jobs.create(
       ids.map((id) => ({ deviceId: id, deviceName: registry.get(id)?.name ?? id, changeIds: store.forDevice(id).map((r) => r.id) })),
@@ -141,7 +141,7 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
       for (const id of step.changeIds) covered.add(id);
     }
     for (const row of rows) {
-      if (!covered.has(row.id)) run.fail([row.id], row.key ? `Unbekannte Einstellung ${row.key}` : 'Nicht ausführbarer Eintrag');
+      if (!covered.has(row.id)) run.fail([row.id], row.key ? `Unknown setting ${row.key}` : 'Entry cannot be executed');
     }
     this.progress(jobId, deviceId, { status: 'running', step: 'write', error: null });
 
@@ -221,7 +221,7 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
         const { response } = await this.deps.ops.send(deviceId, readCommand(item.def), true);
         const actual = extractValue(item.def, response);
         if (!valuesEqual(item.def, item.expected, actual)) {
-          run.fail([item.changeId], `verify_mismatch: Soll „${item.expected}“, Ist „${actual ?? '—'}“`);
+          run.fail([item.changeId], `verify_mismatch: expected "${item.expected}", got "${actual ?? '—'}"`);
         }
       } catch (err) {
         const message = describe(err);

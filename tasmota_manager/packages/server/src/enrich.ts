@@ -1,4 +1,4 @@
-import type { Device, HaLink } from '@tm/shared';
+import type { Device, HaLink, Language } from '@tm/shared';
 import type { PendingStore } from './changes/store';
 import { suggestNames } from './naming';
 import type { DeviceRegistry } from './registry';
@@ -13,6 +13,8 @@ export class DeviceEnricher {
     private readonly registry: DeviceRegistry,
     private readonly store: PendingStore,
     private readonly ha: HaLookup | null,
+    /** Sprache der Namensvorschläge */
+    private readonly language: () => Language = () => 'en',
   ) {}
 
   all(): Device[] {
@@ -31,6 +33,7 @@ export class DeviceEnricher {
         sensors: raw.get(d.id)?.sensorsJson,
         areaName: links.get(d.id)?.areaName ?? null,
       })),
+      this.language(),
     );
     return devices.map((d) => {
       const pendingName = pendingNames.get(d.id) ?? null;

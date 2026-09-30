@@ -31,7 +31,7 @@ export class DeviceOps {
     const { response } = await this.gateway.send(deviceId, 'Status 11', timeoutMs);
     const sts = isObj(response) && isObj(response.StatusSTS) ? response.StatusSTS : null;
     const uptime = sts ? Number(sts.UptimeSec) : Number.NaN;
-    if (!Number.isFinite(uptime)) throw new TransportError('rejected', 'Status 11 enthält keine UptimeSec');
+    if (!Number.isFinite(uptime)) throw new TransportError('rejected', 'Status 11 contains no UptimeSec');
     return uptime;
   }
 
@@ -56,7 +56,7 @@ export class DeviceOps {
     }
     throw new TransportError(
       'offline',
-      `Gerät ist nach dem Neustart nicht innerhalb von ${Math.round(this.restartTimeoutMs / 1000)} s zurückgekommen`,
+      `Device did not come back within ${Math.round(this.restartTimeoutMs / 1000)} s after the restart`,
     );
   }
 

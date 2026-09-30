@@ -75,8 +75,8 @@ describe('PendingStore', () => {
 
   it('ist atomar: ein ungültiger Wert verhindert das ganze Vormerken', () => {
     expect(() => store.stage({ deviceIds: [A], settings: { LedState: '2', PowerOnState: '9' }, source: 'form' })).toThrow(StageError);
-    expect(() => store.stage({ deviceIds: [A], settings: { Unbekannt: '1' }, source: 'form' })).toThrow(/Unbekannte Einstellung/);
-    expect(() => store.stage({ deviceIds: ['GIBTSNICHT'], settings: { LedState: '2' }, source: 'form' })).toThrow(/Unbekanntes Gerät/);
+    expect(() => store.stage({ deviceIds: [A], settings: { Unbekannt: '1' }, source: 'form' })).toThrow(/Unknown setting/);
+    expect(() => store.stage({ deviceIds: ['GIBTSNICHT'], settings: { LedState: '2' }, source: 'form' })).toThrow(/Unknown device/);
     expect(() => store.stage({ deviceIds: [A], settings: { MqttHost: 'x;Reset 1' }, source: 'form' })).toThrow(StageError);
     expect(store.count()).toBe(0);
   });
@@ -141,7 +141,7 @@ describe('PendingStore', () => {
     store.stage({ deviceIds: [A], commands: ['FriendlyName1 {{name}}-{{mac6}}', 'Power ON'], source: 'command' });
     store.stage({ deviceIds: [A], commands: ['Restart 1'], source: 'command' });
     expect(store.forDevice(A).map((r) => r.value)).toEqual(['FriendlyName1 Keller-000001', 'Power ON', 'Restart 1']);
-    expect(() => store.stage({ deviceIds: [A], commands: ['X {{foo}}'], source: 'command' })).toThrow(/Platzhalter/);
+    expect(() => store.stage({ deviceIds: [A], commands: ['X {{foo}}'], source: 'command' })).toThrow(/placeholder/);
   });
 
   it('sortiert Einstellungen nach Katalog-Reihenfolge vor Befehlen', () => {

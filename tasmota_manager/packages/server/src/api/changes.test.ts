@@ -57,11 +57,11 @@ describe('Änderungs-API', () => {
     const { app } = await setupApp({ fake: { name: 'Tasmota', sensors: { AM2301: { Temperature: 21, Humidity: 40 } } } });
     await addFake(app);
     let device = (await app.inject('/api/devices')).json<Device[]>()[0];
-    expect(device).toMatchObject({ nameSuggestion: 'Klima', pendingCount: 0, pendingName: null, setOption4: false, ha: null });
+    expect(device).toMatchObject({ nameSuggestion: 'Climate', pendingCount: 0, pendingName: null, setOption4: false, ha: null });
     const res = await app.inject({ method: 'POST', url: '/api/changes/suggestions', payload: { deviceIds: [MAC] } });
     expect(res.json()).toEqual({ staged: 2, skipped: 0 });
     device = (await app.inject(`/api/devices/${MAC}`)).json<Device>();
-    expect(device).toMatchObject({ nameSuggestion: null, pendingCount: 2, pendingName: 'Klima' });
+    expect(device).toMatchObject({ nameSuggestion: null, pendingCount: 2, pendingName: 'Climate' });
   });
 
   it('startet den Batch, liefert den Job und leert den Puffer', async () => {

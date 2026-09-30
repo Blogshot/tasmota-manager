@@ -47,24 +47,24 @@ export class HttpTransport implements HttpSender {
     } catch (err) {
       // Die URL enthält ggf. das Passwort und darf nie in Fehlermeldungen landen.
       if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
-        throw new TransportError('timeout', `Keine HTTP-Antwort von ${target.host} innerhalb von ${timeoutMs} ms`);
+        throw new TransportError('timeout', `No HTTP response from ${target.host} within ${timeoutMs} ms`);
       }
       // Bricht die Verbindung erst nach dem Senden ab, kann das Gerät den Befehl schon ausgeführt haben.
-      throw new TransportError('unreachable', `HTTP-Verbindung zu ${target.host} fehlgeschlagen`, !neverConnected(err));
+      throw new TransportError('unreachable', `HTTP connection to ${target.host} failed`, !neverConnected(err));
     }
 
     const json = safeJson(body);
     if (res.status === 401) {
       if (isObj(json) && typeof json.WARNING === 'string') {
-        throw new TransportError('auth', `${target.host} verlangt ein gültiges Web-Passwort`);
+        throw new TransportError('auth', `${target.host} requires a valid web password`);
       }
-      throw new TransportError('unreachable', `${target.host} ist kein Tasmota-Gerät`);
+      throw new TransportError('unreachable', `${target.host} is not a Tasmota device`);
     }
     if (!res.ok || json === undefined) {
-      throw new TransportError('unreachable', `Unerwartete Antwort (HTTP ${res.status}) von ${target.host}`);
+      throw new TransportError('unreachable', `Unexpected response (HTTP ${res.status}) from ${target.host}`);
     }
     if (isRejected(json)) {
-      throw new TransportError('rejected', `Gerät lehnt den Befehl "${splitCommand(command).name}" ab`);
+      throw new TransportError('rejected', `Device rejects the command "${splitCommand(command).name}"`);
     }
     return json;
   }

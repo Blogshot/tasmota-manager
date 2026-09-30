@@ -10,9 +10,9 @@ export function registerLiveRoutes(app: FastifyInstance, deps: AppDeps): void {
   }));
 
   app.post('/api/scan', async (_req, reply) => {
-    if (deps.scanner.running) return reply.code(409).send({ code: 'busy', message: 'Es läuft bereits ein Scan' });
+    if (deps.scanner.running) return reply.code(409).send({ code: 'busy', message: 'A scan is already running' });
     const cidrs = deps.settings.get().scanCidrs;
-    if (cidrs.length === 0) return reply.code(422).send({ code: 'no_cidrs', message: 'Keine Scan-Bereiche konfiguriert' });
+    if (cidrs.length === 0) return reply.code(422).send({ code: 'no_cidrs', message: 'No scan ranges configured' });
     void deps.scanner.scan(cidrs).catch((err: unknown) => app.log.error({ err }, 'Scan fehlgeschlagen'));
     return reply.code(202).send({ started: true });
   });

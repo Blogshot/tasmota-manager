@@ -1,4 +1,4 @@
-import type { Settings, SettingsUpdateRequest } from '@tm/shared';
+import type { LanguageSetting, Settings, SettingsUpdateRequest } from '@tm/shared';
 import type { Db } from './db';
 import { settings as settingsTable } from './db/schema';
 
@@ -9,6 +9,7 @@ export interface StoredSettings {
   backupRetention: number;
   firmwarePort: number;
   globalPassword: string | null;
+  language: LanguageSetting;
 }
 
 export function defaultSettings(scanCidrs: string[]): StoredSettings {
@@ -19,6 +20,7 @@ export function defaultSettings(scanCidrs: string[]): StoredSettings {
     backupRetention: 10,
     firmwarePort: 8266,
     globalPassword: null,
+    language: 'auto',
   };
 }
 

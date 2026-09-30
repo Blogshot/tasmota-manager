@@ -31,22 +31,28 @@ export interface SettingDef {
 
 export const MAX_RULE_LENGTH = 511;
 
+/**
+ * Validierungstexte sind sprachneutrale Schlüssel mit Parametern (`invalid.range|0|5`).
+ * Die Oberfläche übersetzt sie; in Logs und API-Antworten bleiben sie lesbar.
+ */
+export const issue = (key: string, ...args: Array<string | number>): string => [`invalid.${key}`, ...args].join('|');
+
 const text = (max: number) => z.string().trim().min(1).max(max);
 // Werte mit Neustart landen gebündelt in einem Backlog; ein Semikolon würde dort einen eigenen Befehl einschleusen.
-const noSemicolon = (schema: z.ZodString) => schema.refine((v) => !v.includes(';'), { message: 'Semikolon ist nicht erlaubt' });
+const noSemicolon = (schema: z.ZodString) => schema.refine((v) => !v.includes(';'), { message: issue('semicolon') });
 const int = (min: number, max: number) =>
   z
     .string()
     .trim()
-    .regex(/^-?\d+$/, { message: 'Ganzzahl erwartet' })
-    .refine((v) => Number(v) >= min && Number(v) <= max, { message: `Erlaubt: ${min}–${max}` });
-const bool = z.string().regex(/^[01]$/, { message: '0 oder 1 erwartet' });
+    .regex(/^-?\d+$/, { message: issue('int') })
+    .refine((v) => Number(v) >= min && Number(v) <= max, { message: issue('range', min, max) });
+const bool = z.string().regex(/^[01]$/, { message: issue('bool') });
 const coord = (limit: number) =>
   z
     .string()
     .trim()
-    .regex(/^-?\d{1,3}(\.\d{1,6})?$/, { message: 'Dezimalzahl erwartet' })
-    .refine((v) => Math.abs(Number(v)) <= limit, { message: `Erlaubt: ±${limit}` });
+    .regex(/^-?\d{1,3}(\.\d{1,6})?$/, { message: issue('decimal') })
+    .refine((v) => Math.abs(Number(v)) <= limit, { message: issue('maxAbs', limit) });
 
 // Die Firmware speichert Minuten: ein „-" bedeutet +12 h. Eine Uhrzeit mit Minus oder ein Versatz ab 12 h käme deshalb
 // als anderer Wert zurück und würde beim Prüfen als Abweichung gelten.
@@ -61,10 +67,10 @@ export const TimerSchema = z
     Output: z.int().min(1).max(16),
     Action: z.int().min(0).max(3),
   })
-  .refine((t) => t.Mode !== 0 || !t.Time.startsWith('-'), { path: ['Time'], message: 'Uhrzeit ohne Vorzeichen erwartet' })
+  .refine((t) => t.Mode !== 0 || !t.Time.startsWith('-'), { path: ['Time'], message: issue('timeNoSign') })
   .refine((t) => t.Mode === 0 || Number(t.Time.replace(/^[+-]/, '').slice(0, 2)) <= 11, {
     path: ['Time'],
-    message: 'Versatz höchstens ±11:59',
+    message: issue('offsetMax'),
   });
 export type Timer = z.infer<typeof TimerSchema>;
 
@@ -105,12 +111,12 @@ const timerValue = z.string().transform((v, ctx) => {
     // kein JSON
   }
   if (!parsed?.success) {
-    ctx.issues.push({ code: 'custom', message: 'Ungültiger Timer', input: v });
+    ctx.issues.push({ code: 'custom', message: issue('timer'), input: v });
     return z.NEVER;
   }
   return JSON.stringify(normalizeTimer(parsed.data));
 });
-const ruleText = z.string().max(MAX_RULE_LENGTH, { message: `Höchstens ${MAX_RULE_LENGTH} Zeichen` });
+const ruleText = z.string().max(MAX_RULE_LENGTH, { message: issue('maxLength', MAX_RULE_LENGTH) });
 
 const setting = (
   key: string,
@@ -141,7 +147,7 @@ export const SETTINGS: readonly SettingDef[] = [
     z
       .string()
       .trim()
-      .regex(/^(99|[+-]?\d{1,2}|[+-]\d{1,2}:\d{2})$/, { message: '99, Stunden oder ±HH:MM' }),
+      .regex(/^(99|[+-]?\d{1,2}|[+-]\d{1,2}:\d{2})$/, { message: issue('timezone') }),
     70,
   ),
   setting('NtpServer1', 'time', 'text', text(64), 71),

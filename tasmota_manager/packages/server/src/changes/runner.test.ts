@@ -113,7 +113,7 @@ describe('ApplyRunner über HTTP', () => {
     const c = await httpSetup({ ignore: ['LedState'] });
     const item = await run(c, { settings: { LedState: '5' }, source: 'form' });
     expect(item?.status).toBe('failed');
-    expect(c.store.forDevice(MAC)[0]?.error).toBe('verify_mismatch: Soll „5“, Ist „1“');
+    expect(c.store.forDevice(MAC)[0]?.error).toBe('verify_mismatch: expected "5", got "1"');
   });
 
   it('meldet keine Abweichung, wenn das Gerät Zeitzone und Timer-Versatz in seinem eigenen Format zurückgibt', async () => {
@@ -132,7 +132,7 @@ describe('ApplyRunner über HTTP', () => {
     const c = await httpSetup({ ignore: ['Timezone'] });
     const item = await run(c, { settings: { Timezone: '-5' }, source: 'form' });
     expect(item?.status).toBe('failed');
-    expect(c.store.forDevice(MAC)[0]?.error).toBe('verify_mismatch: Soll „-5“, Ist „99“');
+    expect(c.store.forDevice(MAC)[0]?.error).toBe('verify_mismatch: expected "-5", got "99"');
   });
 
   it('verhindert parallele Läufe und leere Starts', async () => {
@@ -195,7 +195,7 @@ describe('ApplyRunner über HTTP', () => {
     c.runner.start();
     await c.runner.waitIdle();
     // Der Lauf selbst ist fehlgeschlagen (Wert 2 kam nicht an), die neue Zeile mit Wert 5 wurde aber nie versucht.
-    expect(c.jobs.latest()?.items[0]).toMatchObject({ status: 'failed', error: 'verify_mismatch: Soll „2“, Ist „1“' });
+    expect(c.jobs.latest()?.items[0]).toMatchObject({ status: 'failed', error: 'verify_mismatch: expected "2", got "1"' });
     expect(c.store.forDevice(MAC).map((r) => [r.value, r.error])).toEqual([['5', null]]);
   });
 
@@ -221,7 +221,7 @@ describe('ApplyRunner über HTTP', () => {
     expect(c.fake.values.LedState).toBe('2');
     const remaining = c.store.forDevice(MAC);
     expect(remaining.map((r) => r.key)).toEqual(['Bogus']);
-    expect(remaining[0]?.error).toBe('Unbekannte Einstellung Bogus');
+    expect(remaining[0]?.error).toBe('Unknown setting Bogus');
   });
 
   it('bricht das Gerät ab, wenn uptime vor einem Neustart-Befehl fehlschlägt (auch mit rejected)', async () => {

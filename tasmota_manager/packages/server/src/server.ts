@@ -1,3 +1,4 @@
+import { resolveLanguage } from '@tm/shared';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -80,7 +81,7 @@ export async function startServer(config: AppConfig, overrides: StartOverrides =
     log,
   });
   const ha = config.ha ? new HaClient(config.ha, log) : null;
-  const enricher = new DeviceEnricher(registry, store, ha);
+  const enricher = new DeviceEnricher(registry, store, ha, () => resolveLanguage(settings.get().language, ha?.language));
   wireLiveEvents({ hub, registry, scanner, mqtt, store, runner, ha, enricher });
   ha?.start();
 

@@ -27,9 +27,9 @@ export class DeviceGateway {
 
   async send(id: string, command: string, timeoutMs?: number): Promise<SendResult> {
     const device = this.deps.registry.get(id);
-    if (!device) throw new TransportError('offline', `Unbekanntes Gerät ${id}`, false);
+    if (!device) throw new TransportError('offline', `Unknown device ${id}`, false);
     const channels = this.channelsFor(device);
-    if (channels.length === 0) throw new TransportError('offline', 'Gerät ist weder per MQTT noch per HTTP erreichbar', false);
+    if (channels.length === 0) throw new TransportError('offline', 'Device is reachable neither via MQTT nor via HTTP', false);
 
     let lastError: TransportError | null = null;
     for (const [index, channel] of channels.entries()) {
@@ -46,7 +46,7 @@ export class DeviceGateway {
         if (index === channels.length - 1 || !canFallback(err, command)) break;
       }
     }
-    throw lastError ?? new TransportError('offline', 'Gerät nicht erreichbar');
+    throw lastError ?? new TransportError('offline', 'Device not reachable');
   }
 
   private channelsFor(device: Device): Channel[] {

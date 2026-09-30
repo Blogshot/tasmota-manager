@@ -95,7 +95,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
 
   async stop(): Promise<void> {
     this.setStatus('disabled');
-    for (const pending of this.pending.values()) pending.reject(new TransportError('offline', 'MQTT wurde beendet'));
+    for (const pending of this.pending.values()) pending.reject(new TransportError('offline', 'MQTT was stopped'));
     this.pending.clear();
     const client = this.client;
     this.client = null;
@@ -124,7 +124,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
 
   async send(target: MqttTarget, command: string, timeoutMs = this.opts.timeoutMs ?? 5000): Promise<unknown> {
     const client = this.client;
-    if (!client || this.status !== 'connected') throw new TransportError('offline', 'MQTT-Broker nicht verbunden', false);
+    if (!client || this.status !== 'connected') throw new TransportError('offline', 'MQTT broker not connected', false);
     await this.watch(target);
     return this.withLock(target.topic, () => this.sendLocked(client, target, command, timeoutMs));
   }
@@ -139,7 +139,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
         fn();
       };
       const timer = setTimeout(
-        () => finish(() => reject(new TransportError('timeout', `Keine MQTT-Antwort innerhalb von ${timeoutMs} ms`))),
+        () => finish(() => reject(new TransportError('timeout', `No MQTT response within ${timeoutMs} ms`))),
         timeoutMs,
       );
       this.pending.set(target.topic, {
@@ -149,7 +149,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
         reject: (err) => finish(() => reject(err)),
       });
       client.publish(cmndTopic, args, (err) => {
-        if (err) finish(() => reject(new TransportError('unreachable', 'MQTT-Publish fehlgeschlagen')));
+        if (err) finish(() => reject(new TransportError('unreachable', 'MQTT publish failed')));
       });
     });
   }
@@ -195,7 +195,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
           return;
         }
         if (pending && matchesResponse(pending.name, suffix, payload)) {
-          if (isRejected(payload)) pending.reject(new TransportError('rejected', `Gerät lehnt den Befehl "${pending.name}" ab`));
+          if (isRejected(payload)) pending.reject(new TransportError('rejected', `Device rejects the command "${pending.name}"`));
           else pending.resolve(payload);
         }
         return;

@@ -44,7 +44,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     app.addHook('onRequest', async (req, reply) => {
       const ip = req.ip.replace(/^::ffff:/, '');
       if (!allowed.has(ip)) {
-        return reply.code(403).send({ code: 'forbidden', message: 'Zugriff nur über Home Assistant (Ingress)' });
+        return reply.code(403).send({ code: 'forbidden', message: 'Access only through Home Assistant (ingress)' });
       }
     });
   }
