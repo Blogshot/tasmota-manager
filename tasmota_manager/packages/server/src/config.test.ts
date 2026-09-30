@@ -12,6 +12,14 @@ function dataDir(options?: object): string {
 }
 
 describe('loadConfig', () => {
+  it('nutzt die HA-API des Supervisors bzw. TM_HA_URL', async () => {
+    const supervised = await loadConfig({ TM_DATA_DIR: dataDir(), SUPERVISOR_TOKEN: 'tok' }, vi.fn().mockRejectedValue(new Error('x')));
+    expect(supervised.ha).toEqual({ url: 'ws://supervisor/core/websocket', token: 'tok' });
+    const local = await loadConfig({ TM_DATA_DIR: dataDir(), TM_HA_URL: 'ws://ha:8123/api/websocket', TM_HA_TOKEN: 't2' }, vi.fn());
+    expect(local.ha).toEqual({ url: 'ws://ha:8123/api/websocket', token: 't2' });
+    expect((await loadConfig({ TM_DATA_DIR: dataDir() }, vi.fn())).ha).toBeNull();
+  });
+
   it('nutzt Standardwerte ohne Optionen', async () => {
     const config = await loadConfig({ TM_DATA_DIR: dataDir() }, vi.fn());
     expect(config).toMatchObject({ port: 8099, logLevel: 'info', mqtt: null, ingressOnly: false });

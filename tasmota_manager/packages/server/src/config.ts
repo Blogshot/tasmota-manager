@@ -9,6 +9,11 @@ export interface MqttConfig {
   password?: string;
 }
 
+export interface HaConfig {
+  url: string;
+  token: string;
+}
+
 export interface AppConfig {
   dataDir: string;
   port: number;
@@ -16,6 +21,8 @@ export interface AppConfig {
   mqtt: MqttConfig | null;
   /** true unter dem Supervisor: nur Anfragen über den Ingress-Proxy zulassen. */
   ingressOnly: boolean;
+  /** Zugang zur Home-Assistant-API (optional). */
+  ha?: HaConfig | null;
   /** Grund, warum der MQTT-Dienst des Supervisors nicht ermittelt werden konnte. */
   mqttLookupError?: string;
 }
@@ -42,6 +49,7 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env, fetchFn: 
     logLevel: options.log_level ?? env.TM_LOG_LEVEL ?? 'info',
     mqtt,
     ingressOnly: Boolean(env.SUPERVISOR_TOKEN),
+    ha: resolveHa(env),
     ...(lookupError ? { mqttLookupError: lookupError } : {}),
   };
 }
@@ -115,4 +123,10 @@ export function detectHostCidrs(ifaces: ReturnType<typeof networkInterfaces> = n
     }
   }
   return [...result];
+}
+
+function resolveHa(env: NodeJS.ProcessEnv): HaConfig | null {
+  if (env.SUPERVISOR_TOKEN) return { url: 'ws://supervisor/core/websocket', token: env.SUPERVISOR_TOKEN };
+  if (env.TM_HA_URL && env.TM_HA_TOKEN) return { url: env.TM_HA_URL, token: env.TM_HA_TOKEN };
+  return null;
 }
