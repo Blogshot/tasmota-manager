@@ -236,6 +236,60 @@ describe('ApplyRunner über HTTP', () => {
     expect(remaining.every((r) => r.error?.startsWith('rejected'))).toBe(true);
   });
 
+  it('löst freie Befehle direkt nach dem Senden auf, damit ein unterbrochener Lauf sie nicht wiederholt', async () => {
+    const c = await httpSetup();
+    const sent: string[] = [];
+    let release = (): void => undefined;
+    const hang = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const stub = {
+      uptime: async () => 100,
+      send: async (_id: string, command: string) => {
+        sent.push(command);
+        if (command === 'Power TOGGLE') await hang;
+        return { response: {} };
+      },
+      query: async () => ({}),
+      waitForRestart: async () => undefined,
+    };
+    const runner = new ApplyRunner({ store: c.store, jobs: c.jobs, registry: c.registry, ops: stub as never, concurrency: () => 1, log: silentLogger });
+    c.store.stage({ deviceIds: [MAC], commands: ['Counter1 +1', 'Power TOGGLE'], source: 'command' });
+    const toggleId = c.store.forDevice(MAC)[1]?.id;
+    runner.start();
+    try {
+      await waitFor(() => sent.length === 2);
+      // Genau hier würde ein App-Neustart den Lauf unterbrechen: „Counter1 +1" ist ausgeführt, „Power TOGGLE" noch offen.
+      expect(c.store.forDevice(MAC).map((r) => r.value)).toEqual(['Power TOGGLE']);
+      const interrupted = c.jobs.recoverInterrupted();
+      c.store.fail(interrupted, INTERRUPTED);
+      expect(interrupted).toEqual([toggleId]);
+      expect(c.store.forDevice(MAC).map((r) => [r.value, r.error])).toEqual([['Power TOGGLE', INTERRUPTED]]);
+    } finally {
+      release();
+      await runner.waitIdle();
+    }
+  });
+
+  it('wiederholt einen gesendeten Neustart-Befehl nicht, wenn das Gerät nicht zurückkommt', async () => {
+    const c = await httpSetup({ downtimeMs: 60_000 }, 400);
+    const item = await run(c, { commands: ['Restart 1', 'FriendlyName1 Danach'], source: 'command' });
+    expect(item?.status).toBe('failed');
+    expect(item?.error).toMatch(/^offline/);
+    const remaining = c.store.forDevice(MAC);
+    expect(remaining.map((r) => r.value)).toEqual(['FriendlyName1 Danach']);
+    expect(remaining[0]?.error).toMatch(/^offline/);
+    expect(c.fake.received.filter((cmd) => cmd === 'Restart 1')).toHaveLength(1);
+  });
+
+  it('meldet das Gerät als fehlgeschlagen, auch wenn nur der Neustart-Befehl vorgemerkt war', async () => {
+    const c = await httpSetup({ downtimeMs: 60_000 }, 400);
+    const item = await run(c, { commands: ['Restart 1'], source: 'command' });
+    expect(item?.status).toBe('failed');
+    expect(item?.error).toMatch(/^offline/);
+    expect(c.store.count()).toBe(0);
+  });
+
   it('übernimmt beim App-Start unterbrochene Läufe als Fehler', async () => {
     const c = await httpSetup();
     c.store.stage({ deviceIds: [MAC], settings: { LedState: '2' }, source: 'form' });

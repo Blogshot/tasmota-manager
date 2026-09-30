@@ -9,6 +9,8 @@ export interface SendStep {
   restarts: boolean;
   /** Darf nach einem Timeout wiederholt werden. */
   idempotent: boolean;
+  /** Freier Befehl ohne Verify: gilt mit dem erfolgreichen Senden als erledigt. */
+  settleOnSend: boolean;
 }
 
 export interface VerifyItem {
@@ -77,12 +79,18 @@ export function planDevice(rows: readonly PendingRow[]): DevicePlan {
   const restarting = settings.filter((s) => s.def.restarts);
 
   return {
-    settings: plain.map((s) => ({ command: commandFor(s.def, s.row.value), changeIds: [s.row.id], restarts: false, idempotent: true })),
+    settings: plain.map((s) => ({ command: commandFor(s.def, s.row.value), changeIds: [s.row.id], restarts: false, idempotent: true, settleOnSend: false })),
     verifySettings: toVerify(plain),
     commands: rows
       .filter((r) => r.kind === 'command')
       .sort((a, b) => a.position - b.position || a.id - b.id)
-      .map((r) => ({ command: r.value, changeIds: [r.id], restarts: isRestartCommand(r.value), idempotent: isQuery(r.value) })),
+      .map((r) => ({
+        command: r.value,
+        changeIds: [r.id],
+        restarts: isRestartCommand(r.value),
+        idempotent: isQuery(r.value),
+        settleOnSend: true,
+      })),
     restartBundle:
       restarting.length === 0
         ? null
@@ -91,6 +99,7 @@ export function planDevice(rows: readonly PendingRow[]): DevicePlan {
             changeIds: restarting.map((s) => s.row.id),
             restarts: true,
             idempotent: true,
+            settleOnSend: false,
           },
     verifyRestart: toVerify(restarting),
   };

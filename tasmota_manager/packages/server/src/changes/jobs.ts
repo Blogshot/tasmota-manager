@@ -52,6 +52,14 @@ export class JobRepo {
     return toItem(row);
   }
 
+  /** Erledigte Einträge gehören nicht mehr zum Item; eine spätere Unterbrechung darf sie nicht als Fehler markieren. */
+  removeChangeIds(jobId: number, deviceId: string, ids: number[]): void {
+    const row = this.itemRow(jobId, deviceId);
+    if (!row) return;
+    const changeIds = row.changeIds.filter((id) => !ids.includes(id));
+    this.db.update(jobItems).set({ changeIds }).where(eq(jobItems.id, row.id)).run();
+  }
+
   finish(jobId: number): JobView {
     this.db.update(jobs).set({ status: 'done', finishedAt: this.now().toISOString() }).where(eq(jobs.id, jobId)).run();
     const view = this.get(jobId);

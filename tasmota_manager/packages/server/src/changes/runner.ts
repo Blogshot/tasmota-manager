@@ -32,6 +32,13 @@ class DeviceRun {
   readonly failed = new Map<number, string>();
   aborted: string | null = null;
 
+  /** Werte zum Zeitpunkt der Planung; nur Zeilen mit unverändertem Wert werden aufgelöst. */
+  constructor(private readonly planned: ReadonlyMap<number, string>) {}
+
+  withValues(ids: Iterable<number>): Array<{ id: number; value: string }> {
+    return [...ids].map((id) => ({ id, value: this.planned.get(id) ?? '' }));
+  }
+
   succeed(ids: number[]): void {
     for (const id of ids) this.done.add(id);
   }
@@ -49,9 +56,10 @@ class DeviceRun {
     return grouped;
   }
 
+  /** Ein Abbruch zählt auch dann als Fehler, wenn keine Zeile mehr offen ist (z. B. nur ein gesendeter Neustart-Befehl). */
   firstError(): string | null {
     const first = this.failed.values().next();
-    return first.done ? null : first.value;
+    return first.done ? this.aborted : first.value;
   }
 }
 
@@ -126,8 +134,7 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
     const ids = new Set(this.deps.jobs.changeIdsOf(jobId, deviceId));
     const rows = store.forDevice(deviceId).filter((r) => ids.has(r.id));
     const plan = planDevice(rows);
-    const plannedValues = new Map(rows.map((r) => [r.id, r.value]));
-    const run = new DeviceRun();
+    const run = new DeviceRun(new Map(rows.map((r) => [r.id, r.value])));
     // Zeilen, die der Plan nicht abdeckt (z. B. unbekannter Katalogschlüssel), dürfen nicht unbemerkt liegen bleiben.
     const covered = new Set<number>();
     for (const step of [...plan.settings, ...plan.commands, ...(plan.restartBundle ? [plan.restartBundle] : [])]) {
@@ -148,9 +155,10 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
     await this.verify(jobId, deviceId, plan.verifyRestart, run);
 
     if (!run.aborted) await this.refreshStatus(deviceId);
-    store.resolveUnchanged([...run.done].map((id) => ({ id, value: plannedValues.get(id) ?? '' })));
+    store.resolveUnchanged(run.withValues(run.done));
     for (const [message, changeIds] of run.failuresByMessage()) store.fail(changeIds, message);
-    this.progress(jobId, deviceId, { status: run.failed.size > 0 ? 'failed' : 'success', step: null, error: run.firstError() });
+    const error = run.firstError();
+    this.progress(jobId, deviceId, { status: error === null ? 'success' : 'failed', step: null, error });
   }
 
   private async execute(jobId: number, deviceId: string, step: SendStep, run: DeviceRun): Promise<void> {
@@ -158,10 +166,11 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
       run.fail(step.changeIds, run.aborted);
       return;
     }
-    const { ops } = this.deps;
+    const { ops, store, jobs } = this.deps;
+    let settled = false;
     const abort = (err: unknown): void => {
       const message = describe(err);
-      run.fail(step.changeIds, message);
+      if (!settled) run.fail(step.changeIds, message);
       run.aborted = message;
     };
     let before = 0;
@@ -179,6 +188,13 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
       else abort(err);
       return;
     }
+    if (step.settleOnSend) {
+      // Ein freier Befehl ist mit dem Senden ausgeführt. Sofort festhalten (Puffer und Job-Item), damit ein
+      // unterbrochener Lauf ihn beim erneuten Start nicht noch einmal ausführt.
+      store.resolveUnchanged(run.withValues(step.changeIds));
+      jobs.removeChangeIds(jobId, deviceId, step.changeIds);
+      settled = true;
+    }
     if (step.restarts) {
       try {
         this.progress(jobId, deviceId, { step: 'restart' });
@@ -189,7 +205,7 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
         return;
       }
     }
-    run.succeed(step.changeIds);
+    if (!settled) run.succeed(step.changeIds);
   }
 
   private async verify(jobId: number, deviceId: string, items: VerifyItem[], run: DeviceRun): Promise<void> {

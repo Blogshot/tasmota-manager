@@ -13,6 +13,15 @@ describe('JobRepo', () => {
     expect(jobs.latest()?.id).toBe(job.id);
   });
 
+  it('nimmt erledigte Einträge aus einem Item, damit eine Unterbrechung sie nicht mehr erfasst', () => {
+    const jobs = new JobRepo(testDb());
+    const job = jobs.create([{ deviceId: 'A', deviceName: 'A', changeIds: [1, 2, 3] }]);
+    jobs.updateItem(job.id, 'A', { status: 'running' });
+    jobs.removeChangeIds(job.id, 'A', [1, 3]);
+    expect(jobs.changeIdsOf(job.id, 'A')).toEqual([2]);
+    expect(jobs.recoverInterrupted()).toEqual([2]);
+  });
+
   it('markiert beim Start unterbrochene Jobs', () => {
     const jobs = new JobRepo(testDb());
     const job = jobs.create([
