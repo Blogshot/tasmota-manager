@@ -4,60 +4,10 @@ import { join } from 'node:path';
 import type { Device, WsMessage } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import { FakeTasmota } from '../../test/fakes/fakeTasmota';
-import { testDb, waitFor } from '../../test/helpers';
-import { HttpScanner } from '../discovery/scanner';
-import { DeviceGateway } from '../gateway';
-import { DeviceRegistry } from '../registry';
-import { SettingsStore, defaultSettings } from '../settings';
-import { HttpTransport } from '../transport/http';
-import { buildApp } from './app';
-import { WsHub, wireLiveEvents } from './hub';
+import { cleanupApps, setupApp as setup } from '../../test/appSetup';
+import { waitFor } from '../../test/helpers';
 
-interface SetupOptions {
-  allowedIps?: string[];
-  webDir?: string;
-  fakePassword?: string;
-}
-
-const cleanups: Array<() => Promise<void>> = [];
-afterEach(async () => {
-  for (const cleanup of cleanups.splice(0)) await cleanup();
-});
-
-async function setup(opts: SetupOptions = {}) {
-  const db = testDb();
-  const registry = new DeviceRegistry(db);
-  const settings = new SettingsStore(db, defaultSettings(['192.168.1.0/24']));
-  const http = new HttpTransport(2000);
-  const gateway = new DeviceGateway({ registry, http, mqtt: null, globalPassword: () => settings.get().globalPassword });
-  const fake = await new FakeTasmota({ mac: 'AABBCC112233', name: 'Keller', password: opts.fakePassword }).start();
-  const scanner = new HttpScanner(
-    http,
-    registry,
-    (id) => gateway.passwordFor(id),
-    () => settings.get().globalPassword || null,
-    { port: fake.port, timeoutMs: 500 },
-  );
-  const hub = new WsHub();
-  wireLiveEvents({ hub, registry, scanner, mqtt: null });
-  const app: FastifyInstance = await buildApp({
-    registry,
-    gateway,
-    scanner,
-    settings,
-    hub,
-    version: 'test',
-    mqttStatus: () => 'disabled',
-    allowedIps: opts.allowedIps,
-    webDir: opts.webDir,
-  });
-  cleanups.push(async () => {
-    await app.close();
-    await fake.stop();
-  });
-  return { app, registry, settings, hub, fake };
-}
+afterEach(cleanupApps);
 
 async function addFake(app: FastifyInstance): Promise<Device> {
   const res = await app.inject({ method: 'POST', url: '/api/devices', payload: { ip: '127.0.0.1' } });

@@ -3,10 +3,15 @@ import websocket from '@fastify/websocket';
 import type { MqttStatus } from '@tm/shared';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Logger } from 'pino';
+import type { JobRepo } from '../changes/jobs';
+import type { ApplyRunner } from '../changes/runner';
+import type { PendingStore } from '../changes/store';
 import type { HttpScanner } from '../discovery/scanner';
+import type { DeviceEnricher } from '../enrich';
 import type { DeviceGateway } from '../gateway';
 import type { DeviceRegistry } from '../registry';
 import type { SettingsStore } from '../settings';
+import { registerChangeRoutes } from './changes';
 import { registerDeviceRoutes } from './devices';
 import type { WsHub } from './hub';
 import { registerLiveRoutes } from './live';
@@ -19,6 +24,10 @@ export interface AppDeps {
   scanner: HttpScanner;
   settings: SettingsStore;
   hub: WsHub;
+  store: PendingStore;
+  runner: ApplyRunner;
+  jobs: JobRepo;
+  enricher: DeviceEnricher;
   mqttStatus: () => MqttStatus;
   version: string;
   webDir?: string;
@@ -44,6 +53,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerDeviceRoutes(app, deps);
   registerSettingsRoutes(app, deps);
   registerLiveRoutes(app, deps);
+  registerChangeRoutes(app, deps);
 
   if (deps.webDir) {
     await app.register(fastifyStatic, { root: deps.webDir });
