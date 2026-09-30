@@ -11,6 +11,27 @@ export interface HttpSender {
   send(target: HttpTarget, command: string, timeoutMs?: number): Promise<unknown>;
 }
 
+// Die Verbindung kam nie zustande: abgelehnt, Host oder Netz nicht erreichbar, Name nicht auflösbar, Verbindungsaufbau abgelaufen.
+const NEVER_CONNECTED = new Set([
+  'ECONNREFUSED',
+  'EHOSTUNREACH',
+  'EHOSTDOWN',
+  'ENETUNREACH',
+  'ENETDOWN',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'UND_ERR_CONNECT_TIMEOUT',
+]);
+
+const errorCode = (err: unknown): unknown => (typeof err === 'object' && err !== null && 'code' in err ? err.code : undefined);
+
+/** fetch meldet „fetch failed" und nennt den Grund in `cause`; bei mehreren Adressen ist das ein AggregateError. */
+function neverConnected(err: unknown): boolean {
+  const cause = err instanceof Error ? err.cause : undefined;
+  const causes = cause instanceof AggregateError ? cause.errors : [cause];
+  return causes.length > 0 && causes.every((c) => NEVER_CONNECTED.has(String(errorCode(c))));
+}
+
 export class HttpTransport implements HttpSender {
   constructor(private readonly defaultTimeoutMs = 10_000) {}
 
@@ -28,7 +49,8 @@ export class HttpTransport implements HttpSender {
       if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
         throw new TransportError('timeout', `Keine HTTP-Antwort von ${target.host} innerhalb von ${timeoutMs} ms`);
       }
-      throw new TransportError('unreachable', `HTTP-Verbindung zu ${target.host} fehlgeschlagen`);
+      // Bricht die Verbindung erst nach dem Senden ab, kann das Gerät den Befehl schon ausgeführt haben.
+      throw new TransportError('unreachable', `HTTP-Verbindung zu ${target.host} fehlgeschlagen`, !neverConnected(err));
     }
 
     const json = safeJson(body);

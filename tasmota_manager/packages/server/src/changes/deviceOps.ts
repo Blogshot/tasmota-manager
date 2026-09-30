@@ -60,7 +60,10 @@ export class DeviceOps {
     );
   }
 
-  /** Sendet mit Wiederholungen, falls der Befehl sicher nicht ausgeführt wurde (oder gefahrlos wiederholbar ist). */
+  /**
+   * Sendet mit Wiederholungen, solange das Gerät vorübergehend nicht antwortet. Nicht idempotente Befehle werden nur
+   * wiederholt, wenn der Fehler sicher ausschließt, dass das Gerät sie schon ausgeführt hat.
+   */
   async send(deviceId: string, command: string, idempotent: boolean): Promise<SendResult> {
     const deadline = Date.now() + this.restartTimeoutMs;
     let delay = this.pollMs;
@@ -69,7 +72,7 @@ export class DeviceOps {
         return await this.gateway.send(deviceId, command, this.commandTimeoutMs);
       } catch (err) {
         if (!(err instanceof TransportError)) throw err;
-        const retriable = err.code === 'unreachable' || err.code === 'offline' || (err.code === 'timeout' && idempotent);
+        const retriable = TRANSIENT.has(err.code) && (idempotent || !err.maybeExecuted);
         if (!retriable || Date.now() + delay > deadline) throw err;
         await sleep(delay);
         delay = Math.min(delay * 2, MAX_BACKOFF_MS);

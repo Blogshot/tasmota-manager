@@ -66,6 +66,11 @@ describe('MqttTransport', () => {
     expect((err as TransportError).code).toBe('rejected');
   });
 
+  it('kennzeichnet einen Timeout als mehrdeutig', async () => {
+    const err = await mqtt.send({ topic: 'niemand', fullTopic: null }, 'Power TOGGLE', 100).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'timeout', maybeExecuted: true });
+  });
+
   it('meldet timeout, wenn niemand antwortet', async () => {
     const err = await mqtt.send({ topic: 'ghost', fullTopic: null }, 'Power', 200).catch((e: unknown) => e);
     expect((err as TransportError).code).toBe('timeout');
@@ -87,6 +92,8 @@ describe('MqttTransport', () => {
     offline.start();
     const err = await offline.send({ topic: 'keller', fullTopic: null }, 'Power').catch((e: unknown) => e);
     expect((err as TransportError).code).toBe('offline');
+    // Ohne Verbindung wurde nichts veröffentlicht.
+    expect((err as TransportError).maybeExecuted).toBe(false);
     await offline.stop();
   });
 });

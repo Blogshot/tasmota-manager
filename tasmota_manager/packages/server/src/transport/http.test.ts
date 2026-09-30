@@ -1,4 +1,4 @@
-import { type Server, createServer } from 'node:http';
+import { type Server, type ServerResponse, createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FakeTasmota } from '../../test/fakes/fakeTasmota';
@@ -60,6 +60,44 @@ describe('HttpTransport', () => {
 
   it('meldet unreachable bei geschlossenem Port', async () => {
     await expectCode(http.send({ host: '127.0.0.1:1', password: null }, 'Power'), 'unreachable');
+  });
+
+  it('kennzeichnet nur Fehler auf Verbindungsebene als sicher nicht ausgeführt', async () => {
+    // Ein eben noch belegter, jetzt geschlossener Port lehnt die Verbindung ab (Port 1 würde fetch selbst blockieren).
+    const probe: Server = createServer();
+    await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', () => resolve()));
+    const { port } = probe.address() as AddressInfo;
+    await new Promise<void>((resolve) => probe.close(() => resolve()));
+    for (const host of [`127.0.0.1:${port}`, `localhost:${port}`]) {
+      const refused = await http.send({ host, password: null }, 'Power TOGGLE').catch((e: unknown) => e);
+      expect(refused).toMatchObject({ code: 'unreachable', maybeExecuted: false });
+    }
+  });
+
+  it('lässt offen, ob der Befehl ausgeführt wurde, wenn die Antwort unbrauchbar ist oder die Verbindung danach abbricht', async () => {
+    const responses: Array<(res: ServerResponse) => void> = [
+      (res) => res.writeHead(500).end('kaputt'),
+      (res) => res.writeHead(200).end('kein json'),
+      (res) => res.socket?.destroy(),
+    ];
+    const server: Server = createServer((_req, res) => responses.shift()?.(res));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const { port } = server.address() as AddressInfo;
+    try {
+      for (let i = 0; i < 3; i++) {
+        const err = await http.send({ host: `127.0.0.1:${port}`, password: null }, 'Power TOGGLE').catch((e: unknown) => e);
+        expect(err).toMatchObject({ code: 'unreachable', maybeExecuted: true });
+      }
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('kennzeichnet einen Timeout als mehrdeutig', async () => {
+    const f = await fake({ responseDelayMs: 500 });
+    const err = await http.send({ host: f.host, password: null }, 'Power TOGGLE', 100).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'timeout', maybeExecuted: true });
   });
 
   it('behandelt fremde Geräte mit 401 nicht als Tasmota', async () => {

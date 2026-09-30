@@ -120,7 +120,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
 
   async send(target: MqttTarget, command: string, timeoutMs = this.opts.timeoutMs ?? 5000): Promise<unknown> {
     const client = this.client;
-    if (!client || this.status !== 'connected') throw new TransportError('offline', 'MQTT-Broker nicht verbunden');
+    if (!client || this.status !== 'connected') throw new TransportError('offline', 'MQTT-Broker nicht verbunden', false);
     await this.watch(target);
     return this.withLock(target.topic, () => this.sendLocked(client, target, command, timeoutMs));
   }

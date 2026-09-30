@@ -71,6 +71,29 @@ describe('DeviceOps', () => {
     expect(gateway.calls).toBe(1);
   });
 
+  it('wiederholt nicht idempotente Befehle nicht, wenn offen ist, ob sie ausgeführt wurden', async () => {
+    for (const code of ['unreachable', 'offline'] as const) {
+      const gateway = new StubGateway([new TransportError(code, 'x'), { ok: 1 }]);
+      const ops = new DeviceOps(gateway as unknown as DeviceGateway, { restartTimeoutMs: 1000, pollIntervalMs: 10 });
+      await expect(ops.send(MAC, 'Power TOGGLE', false)).rejects.toMatchObject({ code });
+      expect(gateway.calls).toBe(1);
+    }
+  });
+
+  it('wiederholt nicht idempotente Befehle, solange sie sicher nicht ausgeführt wurden', async () => {
+    const gateway = new StubGateway([new TransportError('unreachable', 'x', false), new TransportError('offline', 'x', false), { ok: 1 }]);
+    const ops = new DeviceOps(gateway as unknown as DeviceGateway, { restartTimeoutMs: 1000, pollIntervalMs: 10 });
+    expect((await ops.send(MAC, 'Power TOGGLE', false)).response).toEqual({ ok: 1 });
+    expect(gateway.calls).toBe(3);
+  });
+
+  it('wiederholt Abfragen auch nach einem mehrdeutigen Fehler', async () => {
+    const gateway = new StubGateway([new TransportError('unreachable', 'x'), new TransportError('timeout', 'x'), { ok: 1 }]);
+    const ops = new DeviceOps(gateway as unknown as DeviceGateway, { restartTimeoutMs: 1000, pollIntervalMs: 10 });
+    expect((await ops.send(MAC, 'Status 11', true)).response).toEqual({ ok: 1 });
+    expect(gateway.calls).toBe(3);
+  });
+
   it('gibt abgelehnte Befehle sofort weiter', async () => {
     const gateway = new StubGateway([new TransportError('rejected', 'x')]);
     const ops = new DeviceOps(gateway as unknown as DeviceGateway, { restartTimeoutMs: 1000, pollIntervalMs: 10 });

@@ -73,6 +73,19 @@ describe('DeviceGateway', () => {
     expect(http.calls).toEqual([]);
   });
 
+  it('sendet nicht idempotente Befehle nach einem mehrdeutigen MQTT-Fehler nicht per HTTP', async () => {
+    mqtt.impl = () => new TransportError('unreachable', 'Publish fehlgeschlagen');
+    await expect(gateway.send(MAC, 'Power TOGGLE')).rejects.toMatchObject({ code: 'unreachable', maybeExecuted: true });
+    expect(http.calls).toEqual([]);
+    expect((await gateway.send(MAC, 'Power')).channel).toBe('http');
+  });
+
+  it('weicht auch mit nicht idempotenten Befehlen aus, wenn MQTT sicher nichts gesendet hat', async () => {
+    mqtt.impl = () => new TransportError('offline', 'Broker nicht verbunden', false);
+    expect((await gateway.send(MAC, 'Power TOGGLE')).channel).toBe('http');
+    expect(http.calls).toEqual(['Power TOGGLE']);
+  });
+
   it('weicht bei abgelehntem Befehl nicht aus', async () => {
     mqtt.impl = () => new TransportError('rejected', 'r');
     await expect(gateway.send(MAC, 'Foo')).rejects.toMatchObject({ code: 'rejected' });
@@ -102,7 +115,8 @@ describe('DeviceGateway', () => {
 
   it('meldet offline ohne erreichbaren Kanal', async () => {
     registry.upsert({ mac: 'AABBCC000009', name: 'Ohne' });
-    await expect(gateway.send('AABBCC000009', 'Power')).rejects.toMatchObject({ code: 'offline' });
+    await expect(gateway.send('AABBCC000009', 'Power')).rejects.toMatchObject({ code: 'offline', maybeExecuted: false });
+    await expect(gateway.send('GIBTSNICHT', 'Power')).rejects.toMatchObject({ code: 'offline', maybeExecuted: false });
   });
 
   it('meidet MQTT bei Geräten mit SetOption4', async () => {

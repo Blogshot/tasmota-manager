@@ -26,9 +26,9 @@ export class DeviceGateway {
 
   async send(id: string, command: string, timeoutMs?: number): Promise<SendResult> {
     const device = this.deps.registry.get(id);
-    if (!device) throw new TransportError('offline', `Unbekanntes Gerät ${id}`);
+    if (!device) throw new TransportError('offline', `Unbekanntes Gerät ${id}`, false);
     const channels = this.channelsFor(device);
-    if (channels.length === 0) throw new TransportError('offline', 'Gerät ist weder per MQTT noch per HTTP erreichbar');
+    if (channels.length === 0) throw new TransportError('offline', 'Gerät ist weder per MQTT noch per HTTP erreichbar', false);
 
     let lastError: TransportError | null = null;
     for (const [index, channel] of channels.entries()) {
@@ -40,7 +40,7 @@ export class DeviceGateway {
         if (!(err instanceof TransportError)) throw err;
         lastError = err;
         if (channel === 'http' && err.code === 'auth') this.deps.registry.setAuthRequired(id, true);
-        if (index === channels.length - 1 || !canFallback(channel, err, command)) break;
+        if (index === channels.length - 1 || !canFallback(err, command)) break;
       }
     }
     throw lastError ?? new TransportError('offline', 'Gerät nicht erreichbar');
@@ -65,11 +65,10 @@ export class DeviceGateway {
 }
 
 /**
- * Ein MQTT-Timeout ist mehrdeutig: Das Gerät hat den Befehl eventuell ausgeführt.
- * Nur Abfragen werden dann per HTTP wiederholt, damit z. B. „Power TOGGLE" nicht doppelt schaltet.
+ * Hat das Gerät den Befehl eventuell schon ausgeführt (Timeout, Abbruch nach dem Senden, unlesbare Antwort), werden nur
+ * Abfragen über den nächsten Kanal wiederholt, damit z. B. „Power TOGGLE" nicht doppelt schaltet.
  */
-function canFallback(channel: Channel, err: TransportError, command: string): boolean {
+function canFallback(err: TransportError, command: string): boolean {
   if (err.code === 'rejected') return false;
-  if (channel === 'mqtt' && err.code === 'timeout') return isQuery(command);
-  return true;
+  return isQuery(command) || !err.maybeExecuted;
 }
