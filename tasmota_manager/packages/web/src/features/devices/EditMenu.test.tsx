@@ -68,4 +68,39 @@ describe('EditMenu', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Namensvorschläge übernehmen' }));
     await waitFor(() => expect(api.stageSuggestions).toHaveBeenCalledWith(['A', 'B']));
   });
+
+  it('setzt eine Rule für alle ausgewählten Geräte', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<EditMenu devices={devices} />);
+    await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Rule setzen …' }));
+    await user.selectOptions(await screen.findByLabelText('Rule-Nummer'), '2');
+    await user.click(screen.getByLabelText('Rule 2'));
+    await user.paste('ON Power1#State DO Publish x ENDON');
+    await user.click(screen.getByRole('button', { name: 'Vormerken' }));
+    await waitFor(() =>
+      expect(api.stage).toHaveBeenCalledWith({
+        deviceIds: ['A', 'B'],
+        settings: { Rule2: 'ON Power1#State DO Publish x ENDON', Rule2Enabled: '1' },
+        source: 'rule',
+      }),
+    );
+  });
+
+  it('setzt einen Timer für alle ausgewählten Geräte', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<EditMenu devices={devices} />);
+    await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Timer setzen …' }));
+    await user.selectOptions(await screen.findByLabelText('Timer-Nummer'), '4');
+    const time = screen.getByLabelText('Zeit (HH:MM)');
+    await user.clear(time);
+    await user.type(time, '06:45');
+    await user.click(screen.getByRole('button', { name: 'Vormerken' }));
+    await waitFor(() => expect(api.stage).toHaveBeenCalled());
+    const request = vi.mocked(api.stage).mock.calls.at(-1)?.[0];
+    expect(request?.source).toBe('timer');
+    expect(request?.settings?.Timers).toBe('1');
+    expect(JSON.parse(request?.settings?.Timer4 ?? '')).toMatchObject({ Enable: 1, Time: '06:45', Days: '1111111', Repeat: 1 });
+  });
 });

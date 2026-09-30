@@ -7,9 +7,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { BatchCommandsDialog } from './BatchCommandsDialog';
+import { BatchRuleDialog } from './BatchRuleDialog';
 import { BatchSettingsDialog } from './BatchSettingsDialog';
+import { BatchTimerDialog } from './BatchTimerDialog';
 
-type DialogKind = 'settings' | 'commands' | null;
+type DialogKind = 'settings' | 'commands' | 'rule' | 'timer' | null;
 
 export function EditMenu({ devices }: { devices: Device[] }) {
   const t = useT();
@@ -39,11 +41,15 @@ export function EditMenu({ devices }: { devices: Device[] }) {
         <DropdownMenuContent align="start">
           <DropdownMenuItem onSelect={() => setDialog('settings')}>{t('edit.settings')}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setDialog('commands')}>{t('edit.commands')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setDialog('rule')}>{t('edit.rule')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setDialog('timer')}>{t('edit.timer')}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => suggestions.mutate()}>{t('edit.suggestions')}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <BatchSettingsDialog devices={devices} open={dialog === 'settings'} onOpenChange={onOpenChange} />
       <BatchCommandsDialog devices={devices} open={dialog === 'commands'} onOpenChange={onOpenChange} />
+      <BatchRuleDialog devices={devices} open={dialog === 'rule'} onOpenChange={onOpenChange} />
+      <BatchTimerDialog devices={devices} open={dialog === 'timer'} onOpenChange={onOpenChange} />
     </>
   );
 }
