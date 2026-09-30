@@ -9,6 +9,7 @@ import { selectClass } from '@/lib/styles';
 import { AddDeviceDialog } from './AddDeviceDialog';
 import { DeviceSheet } from './DeviceSheet';
 import { DeviceTable } from './DeviceTable';
+import { EditMenu } from './EditMenu';
 import { type StatusFilter, filterDevices } from './filter';
 import { ScanButton } from './ScanButton';
 
@@ -23,7 +24,8 @@ export function DevicesPage() {
 
   const allTags = useMemo(() => [...new Set(devices.flatMap((d) => d.tags))].sort(), [devices]);
   const visible = useMemo(() => filterDevices(devices, { text, status, tag }), [devices, text, status, tag]);
-  const selectedCount = devices.filter((d) => rowSelection[d.id]).length;
+  const selected = devices.filter((d) => rowSelection[d.id]);
+  const selectedCount = selected.length;
 
   return (
     <div className="space-y-4">
@@ -63,6 +65,7 @@ export function DevicesPage() {
       {selectedCount > 0 && (
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
           <span>{t('devices.selected', { count: selectedCount })}</span>
+          <EditMenu devices={selected} />
           <Button variant="ghost" size="sm" onClick={() => setRowSelection({})}>
             {t('devices.clearSelection')}
           </Button>
