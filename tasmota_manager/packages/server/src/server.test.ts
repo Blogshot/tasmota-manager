@@ -1,11 +1,13 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Device } from '@tm/shared';
+import type { Device, JobView, PendingDevice } from '@tm/shared';
 import { describe, expect, it } from 'vitest';
 import { startBroker } from '../test/fakes/broker';
 import { FakeTasmota } from '../test/fakes/fakeTasmota';
 import { MIGRATIONS_DIR, waitFor } from '../test/helpers';
+import { INTERRUPTED, JobRepo } from './changes/jobs';
+import { PendingStore } from './changes/store';
 import { openDb } from './db';
 import { DeviceRegistry } from './registry';
 import { startServer } from './server';
@@ -32,6 +34,41 @@ describe('startServer', () => {
       await fake.stop();
       await server.stop();
       await broker.close();
+    }
+  });
+
+  it('markiert beim Start einen Batch, der beim letzten Beenden lief, als unterbrochen', async () => {
+    const mac = 'AABBCC112233';
+    const dataDir = mkdtempSync(join(tmpdir(), 'tm-server-'));
+    const db = openDb(join(dataDir, 'tasmota-manager.db'), MIGRATIONS_DIR);
+    const registry = new DeviceRegistry(db);
+    registry.upsert({ mac, name: 'Keller' });
+    registry.upsert({ mac: 'AABBCC000002', name: 'Bad' });
+    const store = new PendingStore(db, registry);
+    store.stage({ deviceIds: [mac, 'AABBCC000002'], settings: { LedState: '2' }, commands: ['Power ON'], source: 'form' });
+    const jobs = new JobRepo(db);
+    // Keller lief gerade, Bad wartete noch.
+    const job = jobs.create(
+      [mac, 'AABBCC000002'].map((id) => ({ deviceId: id, deviceName: id, changeIds: store.forDevice(id).map((r) => r.id) })),
+    );
+    jobs.updateItem(job.id, mac, { status: 'running', step: 'write' });
+    db.$client.close();
+
+    const server = await startServer(
+      { dataDir, port: 0, logLevel: 'silent', mqtt: null, ingressOnly: false },
+      { migrationsDir: MIGRATIONS_DIR, webDir: null, scanCidrs: [] },
+    );
+    try {
+      const pending = (await server.app.inject('/api/changes')).json<PendingDevice[]>();
+      expect(pending.flatMap((d) => d.changes.map((c) => c.error))).toEqual([INTERRUPTED, INTERRUPTED, INTERRUPTED, INTERRUPTED]);
+      const current = (await server.app.inject('/api/jobs/current')).json<{ job: JobView }>().job;
+      expect(current.status).toBe('done');
+      expect(current.items.map((i) => [i.status, i.step, i.error])).toEqual([
+        ['failed', null, INTERRUPTED],
+        ['failed', null, INTERRUPTED],
+      ]);
+    } finally {
+      await server.stop();
     }
   });
 
