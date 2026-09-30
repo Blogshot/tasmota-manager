@@ -42,7 +42,12 @@ describe('MqttTransport', () => {
   it('sendet Befehle und liefert die Antwort', async () => {
     await fake();
     const target = { topic: 'keller', fullTopic: null };
-    expect(await mqtt.send(target, 'Status 0')).toMatchObject({ StatusNET: { Mac: 'AA:BB:CC:11:22:33' } });
+    // Per MQTT kommt Status 0 als eine Nachricht pro Block; der Transport fügt sie zusammen.
+    expect(await mqtt.send(target, 'Status 0')).toMatchObject({
+      Status: { Topic: 'keller' },
+      StatusNET: { Mac: 'AA:BB:CC:11:22:33' },
+      StatusSTS: { Wifi: { Signal: -60 } },
+    });
     expect(await mqtt.send(target, 'Power TOGGLE')).toEqual({ POWER: 'ON' });
   });
 

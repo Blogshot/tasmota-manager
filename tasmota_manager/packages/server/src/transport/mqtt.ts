@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import type { MqttStatus } from '@tm/shared';
 import { type MqttClient, connect } from 'mqtt';
 import { buildTopic, isRejected, matchesResponse, splitCommand } from '../tasmota/commands';
-import { type DeviceInfo, parseDiscoveryConfig, safeJson } from '../tasmota/parse';
+import { type DeviceInfo, isObj, parseDiscoveryConfig, safeJson } from '../tasmota/parse';
 import { TransportError } from './errors';
 
 export interface MqttTarget {
@@ -38,6 +38,8 @@ interface Watch {
 
 interface Pending {
   name: string;
+  /** Nur bei `Status 0`: sammelt die einzeln eintreffenden Blöcke (STATUS, STATUS1 … STATUS11). */
+  blocks?: Record<string, unknown>;
   resolve: (payload: unknown) => void;
   reject: (err: TransportError) => void;
 }
@@ -140,6 +142,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
       );
       this.pending.set(target.topic, {
         name,
+        blocks: name.toUpperCase() === 'STATUS' && args === '0' ? {} : undefined,
         resolve: (payload) => finish(() => resolve(payload)),
         reject: (err) => finish(() => reject(err)),
       });
@@ -178,7 +181,14 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
       if (topic.startsWith(watch.stat)) {
         const pending = this.pending.get(watch.topic);
         const payload = safeJson(text);
-        if (pending && matchesResponse(pending.name, topic.slice(watch.stat.length), payload)) {
+        const suffix = topic.slice(watch.stat.length);
+        if (pending?.blocks && /^STATUS\d*$/.test(suffix)) {
+          // Tasmota beantwortet `Status 0` per MQTT mit einer Nachricht pro Block; STATUS11 schließt die Blöcke ab, die wir auswerten.
+          if (isObj(payload)) Object.assign(pending.blocks, payload);
+          if (suffix === 'STATUS11') pending.resolve(pending.blocks);
+          return;
+        }
+        if (pending && matchesResponse(pending.name, suffix, payload)) {
           if (isRejected(payload)) pending.reject(new TransportError('rejected', `Gerät lehnt den Befehl "${pending.name}" ab`));
           else pending.resolve(payload);
         }

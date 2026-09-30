@@ -361,6 +361,15 @@ describe('ApplyRunner über MQTT', () => {
     expect(store.count()).toBe(0);
   });
 
+  it('übernimmt einen neuen Namen nach dem Lauf ins Inventar', async () => {
+    const { store, runner, jobs, registry } = await mqttSetup();
+    store.stage({ deviceIds: [MAC], settings: { DeviceName: 'Steckdose Büro', FriendlyName1: 'Steckdose Büro' }, source: 'form' });
+    runner.start();
+    await runner.waitIdle();
+    expect(jobs.latest()?.items[0]?.status).toBe('success');
+    expect(registry.get(MAC)?.name).toBe('Steckdose Büro');
+  });
+
   it('prüft Neustart-Einstellungen auch ohne HTTP-Adresse', async () => {
     const { store, runner, jobs } = await mqttSetup({ ignore: ['MqttUser'] });
     // MqttHost löst im Fake den Neustart aus (ignorierte Schlüssel starten nicht neu).

@@ -47,7 +47,8 @@ describe('MqttDiscovery', () => {
 
   it('übernimmt STATE-Telemetrie', async () => {
     await fake.connectMqtt(broker.url);
-    await waitFor(() => registry.get(MAC)?.online);
+    // Erst den Status-0-Abruf nach dem LWT abwarten, sonst überschreibt er die Telemetrie.
+    await waitFor(() => registry.get(MAC)?.online && registry.get(MAC)?.chip);
     await fake.publishState();
     await waitFor(() => registry.get(MAC)?.rssi === -55);
     expect(registry.get(MAC)?.uptimeSec).toBe(200);

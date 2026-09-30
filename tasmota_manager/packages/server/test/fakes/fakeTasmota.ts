@@ -46,6 +46,28 @@ const RESTART_KEYS = new Set(['MQTTHOST', 'MQTTPORT', 'MQTTUSER', 'MQTTPASSWORD'
 const isOn = (arg: string): boolean => ['1', 'ON', 'TRUE'].includes(arg.toUpperCase());
 const unquote = (arg: string): string => (arg === '""' ? '' : arg);
 const result = (payload: Json): FakeResult => ({ suffix: 'RESULT', payload });
+
+const STATUS0_SUFFIXES: Record<string, string> = {
+  Status: 'STATUS',
+  StatusPRM: 'STATUS1',
+  StatusFWR: 'STATUS2',
+  StatusLOG: 'STATUS3',
+  StatusMEM: 'STATUS4',
+  StatusNET: 'STATUS5',
+  StatusMQT: 'STATUS6',
+  StatusTIM: 'STATUS7',
+  StatusSNS: 'STATUS10',
+  StatusSTS: 'STATUS11',
+};
+
+/** Per MQTT beantwortet die Firmware `Status 0` nicht in einer Nachricht, sondern mit einer pro Block (STATUS, STATUS1 … STATUS11). */
+function splitStatus0(r: FakeResult): FakeResult[] {
+  if (r.suffix !== 'STATUS0') return [r];
+  const blocks = r.payload as Record<string, Json>;
+  return Object.entries(STATUS0_SUFFIXES)
+    .filter(([key]) => key in blocks)
+    .map(([key, suffix]) => ({ suffix, payload: { [key]: blocks[key] } as Json }));
+}
 const pad = (n: number): string => String(n).padStart(2, '0');
 
 /** Wie CmndTimezone: Stunden -13…14 mit optionalen Minuten, alles ab 15 wird zu 99; gemeldet wird „+01:00" bzw. 99. */
@@ -168,7 +190,9 @@ export class FakeTasmota {
       const command = message.length > 0 ? `${name} ${message.toString()}` : name;
       const results = this.execute(command);
       setTimeout(() => {
-        for (const r of results) void client.publishAsync(`${stat}${r.suffix}`, JSON.stringify(r.payload)).catch(() => undefined);
+        for (const r of results.flatMap(splitStatus0)) {
+          void client.publishAsync(`${stat}${r.suffix}`, JSON.stringify(r.payload)).catch(() => undefined);
+        }
       }, this.opts.responseDelayMs ?? 0);
     });
     await client.publishAsync(`tasmota/discovery/${this.mac}/config`, JSON.stringify(this.discoveryConfig()), { retain: true });
