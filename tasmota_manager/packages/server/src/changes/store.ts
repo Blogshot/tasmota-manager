@@ -176,6 +176,15 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
     this.changed();
   }
 
+  /** Löscht nur Einträge, deren Wert noch dem angewendeten entspricht (zwischenzeitlich neu vorgemerkte Werte bleiben). */
+  resolveUnchanged(rows: Array<{ id: number; value: string }>): void {
+    if (rows.length === 0) return;
+    for (const { id, value } of rows) {
+      this.db.delete(pendingChanges).where(and(eq(pendingChanges.id, id), eq(pendingChanges.value, value))).run();
+    }
+    this.changed();
+  }
+
   fail(ids: number[], error: string): void {
     if (ids.length === 0) return;
     this.db

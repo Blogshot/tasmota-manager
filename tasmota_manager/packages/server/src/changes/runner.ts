@@ -73,39 +73,69 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
   start(deviceIds?: string[]): JobView {
     if (this.current) throw new RunnerBusyError('Es läuft bereits ein Batch');
     const { store, jobs, registry } = this.deps;
-    const ids = (deviceIds ?? store.deviceIdsWithChanges()).filter((id) => store.forDevice(id).length > 0);
+    const ids = [...new Set(deviceIds ?? store.deviceIdsWithChanges())].filter((id) => store.forDevice(id).length > 0);
     if (ids.length === 0) throw new NothingToApplyError('Keine ausstehenden Änderungen');
     store.clearErrors(ids);
     const job = jobs.create(
       ids.map((id) => ({ deviceId: id, deviceName: registry.get(id)?.name ?? id, changeIds: store.forDevice(id).map((r) => r.id) })),
     );
-    this.current = mapLimit(ids, this.deps.concurrency(), (id) => this.runSafe(job.id, id))
-      .then(() => {
-        this.emit('done', jobs.finish(job.id));
-      })
-      .catch((err: unknown) => this.deps.log.error({ err }, 'Batch-Lauf fehlgeschlagen'))
-      .finally(() => {
-        this.current = null;
-      });
+    this.current = this.runBatch(job.id, ids);
     return job;
+  }
+
+  /** Läuft immer bis zum Ende: der Job wird nach allen Geräten abgeschlossen, egal was dazwischen fehlschlägt. */
+  private async runBatch(jobId: number, ids: string[]): Promise<void> {
+    const { jobs, log } = this.deps;
+    try {
+      const limit = Math.max(1, Math.floor(this.deps.concurrency()) || 1);
+      await mapLimit(ids, limit, (id) => this.runSafe(jobId, id));
+    } catch (err) {
+      log.error({ err }, 'Batch-Lauf fehlgeschlagen');
+    }
+    try {
+      const view = jobs.finish(jobId);
+      try {
+        this.emit('done', view);
+      } catch (err) {
+        log.error({ err }, 'done-Listener fehlgeschlagen');
+      }
+    } catch (err) {
+      log.error({ err, jobId }, 'Job konnte nicht abgeschlossen werden');
+    } finally {
+      this.current = null;
+    }
   }
 
   private async runSafe(jobId: number, deviceId: string): Promise<void> {
     try {
       await this.runDevice(jobId, deviceId);
     } catch (err) {
-      this.deps.log.error({ err, deviceId }, 'Batch-Lauf für ein Gerät abgebrochen');
-      const message = describe(err);
-      this.deps.store.fail(this.deps.jobs.changeIdsOf(jobId, deviceId), message);
-      this.progress(jobId, deviceId, { status: 'failed', step: null, error: message });
+      try {
+        this.deps.log.error({ err, deviceId }, 'Batch-Lauf für ein Gerät abgebrochen');
+        const message = describe(err);
+        this.deps.store.fail(this.deps.jobs.changeIdsOf(jobId, deviceId), message);
+        this.progress(jobId, deviceId, { status: 'failed', step: null, error: message });
+      } catch (inner) {
+        this.deps.log.error({ err: inner, deviceId }, 'Fehlerbehandlung für ein Gerät fehlgeschlagen');
+      }
     }
   }
 
   private async runDevice(jobId: number, deviceId: string): Promise<void> {
-    const { store, registry } = this.deps;
+    const { store } = this.deps;
     const ids = new Set(this.deps.jobs.changeIdsOf(jobId, deviceId));
-    const plan = planDevice(store.forDevice(deviceId).filter((r) => ids.has(r.id)));
+    const rows = store.forDevice(deviceId).filter((r) => ids.has(r.id));
+    const plan = planDevice(rows);
+    const plannedValues = new Map(rows.map((r) => [r.id, r.value]));
     const run = new DeviceRun();
+    // Zeilen, die der Plan nicht abdeckt (z. B. unbekannter Katalogschlüssel), dürfen nicht unbemerkt liegen bleiben.
+    const covered = new Set<number>();
+    for (const step of [...plan.settings, ...plan.commands, ...(plan.restartBundle ? [plan.restartBundle] : [])]) {
+      for (const id of step.changeIds) covered.add(id);
+    }
+    for (const row of rows) {
+      if (!covered.has(row.id)) run.fail([row.id], row.key ? `Unbekannte Einstellung ${row.key}` : 'Nicht ausführbarer Eintrag');
+    }
     this.progress(jobId, deviceId, { status: 'running', step: 'write', error: null });
 
     // 1. Einstellungen ohne Neustart (inkl. Rules/Timer) schreiben und sofort prüfen.
@@ -114,12 +144,11 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
     // 2. Freie Befehle, 3. alle Einstellungen mit Neustart in einem Backlog.
     for (const step of plan.commands) await this.execute(jobId, deviceId, step, run);
     if (plan.restartBundle) await this.execute(jobId, deviceId, plan.restartBundle, run);
-    // 4. Nach MQTT-Änderungen nur prüfen, wenn das Gerät auch per HTTP erreichbar ist.
-    const canVerifyRestart = plan.restartBundle === null || Boolean(registry.get(deviceId)?.ip);
-    if (canVerifyRestart) await this.verify(jobId, deviceId, plan.verifyRestart, run);
+    // 4. Einstellungen mit Neustart prüfen (nur solche, die tatsächlich geschrieben wurden und das Gerät zurückkam).
+    await this.verify(jobId, deviceId, plan.verifyRestart, run);
 
     if (!run.aborted) await this.refreshStatus(deviceId);
-    store.resolve([...run.done]);
+    store.resolveUnchanged([...run.done].map((id) => ({ id, value: plannedValues.get(id) ?? '' })));
     for (const [message, changeIds] of run.failuresByMessage()) store.fail(changeIds, message);
     this.progress(jobId, deviceId, { status: run.failed.size > 0 ? 'failed' : 'success', step: null, error: run.firstError() });
   }
@@ -130,21 +159,37 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
       return;
     }
     const { ops } = this.deps;
+    const abort = (err: unknown): void => {
+      const message = describe(err);
+      run.fail(step.changeIds, message);
+      run.aborted = message;
+    };
+    let before = 0;
     try {
-      const before = step.restarts ? await ops.uptime(deviceId) : 0;
+      if (step.restarts) before = await ops.uptime(deviceId);
+    } catch (err) {
+      abort(err);
+      return;
+    }
+    try {
       await ops.send(deviceId, step.command, step.idempotent);
-      if (step.restarts) {
+    } catch (err) {
+      // Nur ein Reject des eigenen Befehls betrifft ihn allein; alles andere (offline, timeout, auth) beendet das Gerät.
+      if (err instanceof TransportError && err.code === 'rejected') run.fail(step.changeIds, describe(err));
+      else abort(err);
+      return;
+    }
+    if (step.restarts) {
+      try {
         this.progress(jobId, deviceId, { step: 'restart' });
         await ops.waitForRestart(deviceId, before);
         this.progress(jobId, deviceId, { step: 'write' });
+      } catch (err) {
+        abort(err);
+        return;
       }
-      run.succeed(step.changeIds);
-    } catch (err) {
-      const message = describe(err);
-      run.fail(step.changeIds, message);
-      // Ein abgelehnter Befehl betrifft nur ihn selbst; alles andere (offline, timeout, auth) beendet das Gerät.
-      if (!(err instanceof TransportError && err.code === 'rejected')) run.aborted = message;
     }
+    run.succeed(step.changeIds);
   }
 
   private async verify(jobId: number, deviceId: string, items: VerifyItem[], run: DeviceRun): Promise<void> {
@@ -185,6 +230,10 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
   }
 
   private progress(jobId: number, deviceId: string, patch: JobItemPatch): void {
-    this.emit('progress', jobId, this.deps.jobs.updateItem(jobId, deviceId, patch));
+    try {
+      this.emit('progress', jobId, this.deps.jobs.updateItem(jobId, deviceId, patch));
+    } catch (err) {
+      this.deps.log.error({ err, deviceId }, 'Fortschritt konnte nicht gemeldet werden');
+    }
   }
 }

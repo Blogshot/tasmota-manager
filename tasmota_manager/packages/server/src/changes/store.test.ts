@@ -47,6 +47,16 @@ describe('PendingStore', () => {
     expect(changes[0]).toMatchObject({ key: 'LedState', value: '5', source: 'detail' });
   });
 
+  it('löst nur unveränderte Werte auf (resolveUnchanged)', () => {
+    store.stage({ deviceIds: [A], settings: { LedState: '2' }, source: 'form' });
+    const id = store.forDevice(A)[0]?.id ?? -1;
+    store.stage({ deviceIds: [A], settings: { LedState: '5' }, source: 'form' });
+    store.resolveUnchanged([{ id, value: '2' }]);
+    expect(store.forDevice(A).map((r) => [r.id, r.value])).toEqual([[id, '5']]);
+    store.resolveUnchanged([{ id, value: '5' }]);
+    expect(store.count()).toBe(0);
+  });
+
   it('verwirft Werte gleich dem aktuellen Gerätewert und entfernt dafür bestehende Einträge', () => {
     store.stage({ deviceIds: [A], settings: { PowerOnState: '1' }, source: 'form' });
     expect(store.stage({ deviceIds: [A], settings: { PowerOnState: '3' }, source: 'form' })).toEqual({ staged: 0, skipped: 1 });

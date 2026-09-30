@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { startBroker } from '../../test/fakes/broker';
 import { FakeTasmota, type FakeTasmotaOptions } from '../../test/fakes/fakeTasmota';
 import { silentLogger, testDb, waitFor } from '../../test/helpers';
+import { pendingChanges } from '../db/schema';
+import { TransportError } from '../transport/errors';
 import { identifyHost } from '../discovery/identify';
 import { MqttDiscovery } from '../discovery/mqttDiscovery';
 import { DeviceGateway } from '../gateway';
@@ -18,6 +20,7 @@ const MAC = 'AABBCC112233';
 const http = new HttpTransport(500);
 
 interface Ctx {
+  db: ReturnType<typeof testDb>;
   fake: FakeTasmota;
   registry: DeviceRegistry;
   store: PendingStore;
@@ -34,7 +37,7 @@ afterEach(async () => {
   ctx = null;
 });
 
-async function httpSetup(fakeOpts: Partial<FakeTasmotaOptions> = {}, restartTimeoutMs = 3000): Promise<Ctx> {
+async function httpSetup(fakeOpts: Partial<FakeTasmotaOptions> = {}, restartTimeoutMs = 3000, concurrency = 5): Promise<Ctx> {
   const db = testDb();
   const registry = new DeviceRegistry(db);
   const fake = await new FakeTasmota({ mac: MAC, restartDelayMs: 20, downtimeMs: 150, ...fakeOpts }).start();
@@ -43,8 +46,8 @@ async function httpSetup(fakeOpts: Partial<FakeTasmotaOptions> = {}, restartTime
   const ops = new DeviceOps(gateway, { restartTimeoutMs, pollIntervalMs: 30, commandTimeoutMs: 300 });
   const store = new PendingStore(db, registry);
   const jobs = new JobRepo(db);
-  const runner = new ApplyRunner({ store, jobs, registry, ops, concurrency: () => 5, log: silentLogger });
-  ctx = { fake, registry, store, jobs, runner, cleanup: () => fake.stop() };
+  const runner = new ApplyRunner({ store, jobs, registry, ops, concurrency: () => concurrency, log: silentLogger });
+  ctx = { db, fake, registry, store, jobs, runner, cleanup: () => fake.stop() };
   return ctx;
 }
 
@@ -137,6 +140,83 @@ describe('ApplyRunner über HTTP', () => {
     expect(done).toHaveLength(1);
   });
 
+  it('übersteht einen werfenden progress-Listener', async () => {
+    const c = await httpSetup();
+    c.runner.on('progress', () => {
+      throw new Error('boom');
+    });
+    c.store.stage({ deviceIds: [MAC], settings: { LedState: '2' }, source: 'form' });
+    c.runner.start();
+    await c.runner.waitIdle();
+    const job = c.jobs.latest();
+    expect(job?.status).toBe('done');
+    expect(['pending', 'running']).not.toContain(job?.items[0]?.status);
+    expect(c.runner.running).toBe(false);
+    expect(c.fake.values.LedState).toBe('2');
+  });
+
+  it('löscht zwischenzeitlich neu vorgemerkte Werte nicht', async () => {
+    const c = await httpSetup();
+    c.store.stage({ deviceIds: [MAC], settings: { LedState: '2' }, source: 'form' });
+    c.runner.on('progress', (_jobId, item) => {
+      if (item.step === 'verify') c.store.stage({ deviceIds: [MAC], settings: { LedState: '5' }, source: 'form' });
+    });
+    c.runner.start();
+    await c.runner.waitIdle();
+    expect(c.fake.values.LedState).toBe('2');
+    expect(c.store.forDevice(MAC).map((r) => r.value)).toEqual(['5']);
+  });
+
+  it('dedupliziert Geräte-IDs beim Start', async () => {
+    const c = await httpSetup();
+    c.store.stage({ deviceIds: [MAC], settings: { LedState: '2' }, source: 'form' });
+    expect(c.runner.start([MAC, MAC]).items).toHaveLength(1);
+  });
+
+  it('wendet bei Concurrency 0 trotzdem an', async () => {
+    const c = await httpSetup({}, 3000, 0);
+    const item = await run(c, { settings: { LedState: '2' }, source: 'form' });
+    expect(item?.status).toBe('success');
+    expect(c.fake.values.LedState).toBe('2');
+  });
+
+  it('markiert nicht planbare Einträge als Fehler', async () => {
+    const c = await httpSetup();
+    const now = new Date().toISOString();
+    c.db.insert(pendingChanges).values({ deviceId: MAC, kind: 'setting', key: 'Bogus', value: '1', source: 'form', createdAt: now, updatedAt: now }).run();
+    const item = await run(c, { settings: { LedState: '2' }, source: 'form' });
+    expect(item?.status).toBe('failed');
+    expect(c.fake.values.LedState).toBe('2');
+    const remaining = c.store.forDevice(MAC);
+    expect(remaining.map((r) => r.key)).toEqual(['Bogus']);
+    expect(remaining[0]?.error).toBe('Unbekannte Einstellung Bogus');
+  });
+
+  it('bricht das Gerät ab, wenn uptime vor einem Neustart-Befehl fehlschlägt (auch mit rejected)', async () => {
+    const c = await httpSetup();
+    const sent: string[] = [];
+    const stub = {
+      uptime: async () => {
+        throw new TransportError('rejected', 'Status 11 enthält keine UptimeSec');
+      },
+      send: async (_id: string, command: string) => {
+        sent.push(command);
+        return { response: {} };
+      },
+      query: async () => ({}),
+      waitForRestart: async () => undefined,
+    };
+    const runner = new ApplyRunner({ store: c.store, jobs: c.jobs, registry: c.registry, ops: stub as never, concurrency: () => 1, log: silentLogger });
+    c.store.stage({ deviceIds: [MAC], commands: ['Restart 1', 'FriendlyName1 Danach'], source: 'command' });
+    runner.start();
+    await runner.waitIdle();
+    expect(sent).toEqual([]);
+    expect(c.jobs.latest()?.items[0]?.status).toBe('failed');
+    const remaining = c.store.forDevice(MAC);
+    expect(remaining).toHaveLength(2);
+    expect(remaining.every((r) => r.error?.startsWith('rejected'))).toBe(true);
+  });
+
   it('übernimmt beim App-Start unterbrochene Läufe als Fehler', async () => {
     const c = await httpSetup();
     c.store.stage({ deviceIds: [MAC], settings: { LedState: '2' }, source: 'form' });
@@ -149,37 +229,42 @@ describe('ApplyRunner über HTTP', () => {
   });
 });
 
+async function mqttSetup(fakeOpts: Partial<FakeTasmotaOptions> = {}): Promise<Ctx> {
+  const broker = await startBroker();
+  const db = testDb();
+  const registry = new DeviceRegistry(db);
+  const mqtt = new MqttTransport({ url: broker.url, timeoutMs: 500 });
+  new MqttDiscovery(mqtt, registry, silentLogger).start();
+  mqtt.start();
+  await waitFor(() => mqtt.status === 'connected');
+  const fake = new FakeTasmota({ mac: MAC, topic: 'keller', advertiseIp: false, restartDelayMs: 20, downtimeMs: 200, ...fakeOpts });
+  await fake.connectMqtt(broker.url);
+  await waitFor(() => registry.get(MAC)?.channels.includes('mqtt') && registry.get(MAC)?.chip);
+
+  const gateway = new DeviceGateway({ registry, http, mqtt, globalPassword: () => null });
+  const ops = new DeviceOps(gateway, { restartTimeoutMs: 5000, pollIntervalMs: 50, commandTimeoutMs: 500 });
+  const store = new PendingStore(db, registry);
+  const jobs = new JobRepo(db);
+  const runner = new ApplyRunner({ store, jobs, registry, ops, concurrency: () => 5, log: silentLogger });
+  ctx = {
+    db,
+    fake,
+    registry,
+    store,
+    jobs,
+    runner,
+    cleanup: async () => {
+      await mqtt.stop();
+      await fake.stop();
+      await broker.close();
+    },
+  };
+  return ctx;
+}
+
 describe('ApplyRunner über MQTT', () => {
   it('schreibt über MQTT, wartet den Neustart ab und kommt nach dem Reconnect weiter', async () => {
-    const broker = await startBroker();
-    const db = testDb();
-    const registry = new DeviceRegistry(db);
-    const mqtt = new MqttTransport({ url: broker.url, timeoutMs: 500 });
-    new MqttDiscovery(mqtt, registry, silentLogger).start();
-    mqtt.start();
-    await waitFor(() => mqtt.status === 'connected');
-    const fake = new FakeTasmota({ mac: MAC, topic: 'keller', advertiseIp: false, restartDelayMs: 20, downtimeMs: 200 });
-    await fake.connectMqtt(broker.url);
-    await waitFor(() => registry.get(MAC)?.channels.includes('mqtt') && registry.get(MAC)?.chip);
-
-    const gateway = new DeviceGateway({ registry, http, mqtt, globalPassword: () => null });
-    const ops = new DeviceOps(gateway, { restartTimeoutMs: 5000, pollIntervalMs: 50, commandTimeoutMs: 500 });
-    const store = new PendingStore(db, registry);
-    const jobs = new JobRepo(db);
-    const runner = new ApplyRunner({ store, jobs, registry, ops, concurrency: () => 5, log: silentLogger });
-    ctx = {
-      fake,
-      registry,
-      store,
-      jobs,
-      runner,
-      cleanup: async () => {
-        await mqtt.stop();
-        await fake.stop();
-        await broker.close();
-      },
-    };
-
+    const { store, runner, jobs, fake } = await mqttSetup();
     store.stage({ deviceIds: [MAC], settings: { LedState: '2', MqttUser: 'neu' }, source: 'form' });
     runner.start();
     await runner.waitIdle();
@@ -188,5 +273,17 @@ describe('ApplyRunner über MQTT', () => {
     expect(fake.values.MqttUser).toBe('neu');
     expect(fake.restarts).toBe(1);
     expect(store.count()).toBe(0);
+  });
+
+  it('prüft Neustart-Einstellungen auch ohne HTTP-Adresse', async () => {
+    const { store, runner, jobs } = await mqttSetup({ ignore: ['MqttUser'] });
+    // MqttHost löst im Fake den Neustart aus (ignorierte Schlüssel starten nicht neu).
+    store.stage({ deviceIds: [MAC], settings: { MqttHost: 'neu.local', MqttUser: 'neu' }, source: 'form' });
+    runner.start();
+    await runner.waitIdle();
+    expect(jobs.latest()?.items[0]?.status).toBe('failed');
+    const remaining = store.forDevice(MAC);
+    expect(remaining.map((r) => r.key)).toEqual(['MqttUser']);
+    expect(remaining[0]?.error).toMatch(/^verify_mismatch/);
   });
 });
