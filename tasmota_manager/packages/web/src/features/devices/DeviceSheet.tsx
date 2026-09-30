@@ -6,9 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { Console } from './Console';
+import { RulesTab } from './detail/RulesTab';
+import { SettingsTab } from './detail/SettingsTab';
+import { TimersTab } from './detail/TimersTab';
 import { StatusDot } from './StatusDot';
 
 interface Props {
@@ -79,53 +83,71 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
         <SheetDescription>{device.id}</SheetDescription>
       </SheetHeader>
 
-      <section className="space-y-2">
-        <h3 className="text-sm font-medium">{t('detail.info')}</h3>
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-          {info.map(([label, value]) => (
-            <div key={label} className="contents">
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd>{value || '—'}</dd>
+      <Tabs defaultValue="info" className="space-y-4">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="info">{t('detail.tab.info')}</TabsTrigger>
+          <TabsTrigger value="settings">{t('detail.tab.settings')}</TabsTrigger>
+          <TabsTrigger value="rules">{t('detail.tab.rules')}</TabsTrigger>
+          <TabsTrigger value="timers">{t('detail.tab.timers')}</TabsTrigger>
+          <TabsTrigger value="console">{t('detail.tab.console')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="info" className="space-y-6">
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium">{t('detail.info')}</h3>
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+              {info.map(([label, value]) => (
+                <div key={label} className="contents">
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd>{value || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium">{t('detail.actions')}</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => command.mutate('Power TOGGLE')}>
+                {t('detail.toggle')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.confirm(t('detail.restartConfirm', { name: device.name })) && command.mutate('Restart 1')}
+              >
+                {t('detail.restart')}
+              </Button>
+              {device.ip && (
+                <Button variant="outline" asChild>
+                  <a href={`http://${device.ip}`} target="_blank" rel="noreferrer">
+                    {t('detail.webui')}
+                  </a>
+                </Button>
+              )}
             </div>
-          ))}
-        </dl>
-      </section>
+          </section>
 
-      <section className="space-y-2">
-        <h3 className="text-sm font-medium">{t('detail.actions')}</h3>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => command.mutate('Power TOGGLE')}>
-            {t('detail.toggle')}
-          </Button>
+          <DeviceSettingsForm key={device.id} device={device} onSwitch={onSwitch} />
+
           <Button
-            variant="outline"
-            onClick={() => window.confirm(t('detail.restartConfirm', { name: device.name })) && command.mutate('Restart 1')}
+            variant="destructive"
+            onClick={() => window.confirm(t('detail.removeConfirm', { name: device.name })) && remove.mutate()}
           >
-            {t('detail.restart')}
+            {t('detail.remove')}
           </Button>
-          {device.ip && (
-            <Button variant="outline" asChild>
-              <a href={`http://${device.ip}`} target="_blank" rel="noreferrer">
-                {t('detail.webui')}
-              </a>
-            </Button>
-          )}
-        </div>
-      </section>
-
-      <DeviceSettingsForm key={device.id} device={device} onSwitch={onSwitch} />
-
-      <section className="space-y-2">
-        <h3 className="text-sm font-medium">{t('console.title')}</h3>
-        <Console key={device.id} deviceId={device.id} />
-      </section>
-
-      <Button
-        variant="destructive"
-        onClick={() => window.confirm(t('detail.removeConfirm', { name: device.name })) && remove.mutate()}
-      >
-        {t('detail.remove')}
-      </Button>
+        </TabsContent>
+        <TabsContent value="settings">
+          <SettingsTab device={device} status={detail?.status ?? null} />
+        </TabsContent>
+        <TabsContent value="rules">
+          <RulesTab deviceId={device.id} />
+        </TabsContent>
+        <TabsContent value="timers">
+          <TimersTab deviceId={device.id} />
+        </TabsContent>
+        <TabsContent value="console">
+          <Console key={device.id} deviceId={device.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
