@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import type { Device, StatusResponse } from '@tm/shared';
+import type { Device, JobView, StatusResponse } from '@tm/shared';
 import { describe, expect, it } from 'vitest';
 import { makeDevice } from '@/test/fixtures';
 import { formatMessage } from './i18n';
@@ -38,6 +38,30 @@ describe('applyMessage', () => {
     applyMessage(qc, { type: 'scan:done', found: 1 });
     expect(qc.getQueryData<StatusResponse>(['status'])?.scanning).toBe(false);
     expect(qc.getQueryData(['scan'])).toBeNull();
+  });
+  it('invalidiert Puffer und Geräte bei Pufferänderungen', () => {
+    const qc = new QueryClient();
+    qc.setQueryData(['changes'], []);
+    qc.setQueryData<Device[]>(['devices'], []);
+    applyMessage(qc, { type: 'changes:updated', count: 3 });
+    expect(qc.getQueryState(['changes'])?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(['devices'])?.isInvalidated).toBe(true);
+  });
+
+  it('aktualisiert den Fortschritt des laufenden Jobs', () => {
+    const qc = new QueryClient();
+    const job: JobView = {
+      id: 7,
+      status: 'running',
+      createdAt: 'x',
+      finishedAt: null,
+      items: [{ deviceId: 'A', deviceName: 'A', status: 'pending', step: null, error: null }],
+    };
+    qc.setQueryData(['job'], { job });
+    applyMessage(qc, { type: 'job:progress', jobId: 7, item: { deviceId: 'A', deviceName: 'A', status: 'running', step: 'restart', error: null } });
+    expect(qc.getQueryData<{ job: JobView }>(['job'])?.job.items[0]).toMatchObject({ status: 'running', step: 'restart' });
+    applyMessage(qc, { type: 'job:done', job: { ...job, status: 'done' } });
+    expect(qc.getQueryData<{ job: JobView }>(['job'])?.job.status).toBe('done');
   });
 });
 

@@ -3,9 +3,15 @@ import type {
   Device,
   DeviceDetail,
   DeviceUpdateRequest,
+  JobView,
+  PendingDevice,
+  RuleState,
   Settings,
   SettingsUpdateRequest,
+  StageRequest,
+  StageResult,
   StatusResponse,
+  TimersState,
 } from '@tm/shared';
 
 export class ApiError extends Error {
@@ -46,4 +52,14 @@ export const api = {
   updateSettings: (patch: SettingsUpdateRequest) => request<Settings>('settings', json('PUT', patch)),
   status: () => request<StatusResponse>('status'),
   scan: () => request<{ started: boolean }>('scan', json('POST', {})),
+  changes: () => request<PendingDevice[]>('changes'),
+  stage: (req: StageRequest) => request<StageResult>('changes', json('POST', req)),
+  stageSuggestions: (deviceIds: string[]) => request<StageResult>('changes/suggestions', json('POST', { deviceIds })),
+  discardChange: (id: number) => request<void>(`changes/${id}`, { method: 'DELETE' }),
+  discardDevice: (deviceId: string) => request<void>(`changes?deviceId=${encodeURIComponent(deviceId)}`, { method: 'DELETE' }),
+  discardAll: () => request<void>('changes', { method: 'DELETE' }),
+  apply: (deviceIds?: string[]) => request<JobView>('changes/apply', json('POST', deviceIds ? { deviceIds } : {})),
+  currentJob: () => request<{ job: JobView | null }>('jobs/current'),
+  rules: (id: string) => request<RuleState[]>(`${deviceUrl(id)}/rules`),
+  timers: (id: string) => request<TimersState>(`${deviceUrl(id)}/timers`),
 };

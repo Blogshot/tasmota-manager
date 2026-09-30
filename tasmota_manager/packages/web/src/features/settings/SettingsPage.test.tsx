@@ -38,7 +38,7 @@ describe('SettingsPage', () => {
     await user.clear(cidrs);
     await user.type(cidrs, '10.0.0.0/8');
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
-    expect(screen.getByText('Ungültiger Bereich: 10.0.0.0/8')).toBeInTheDocument();
+    expect(screen.getByText(/Ungültiger oder zu großer Bereich: 10\.0\.0\.0\/8/)).toBeInTheDocument();
     expect(api.updateSettings).not.toHaveBeenCalled();
   });
 

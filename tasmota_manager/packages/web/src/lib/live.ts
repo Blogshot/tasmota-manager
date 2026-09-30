@@ -1,5 +1,5 @@
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
-import type { Device, StatusResponse, WsMessage } from '@tm/shared';
+import type { Device, JobView, StatusResponse, WsMessage } from '@tm/shared';
 import { useEffect } from 'react';
 
 export function applyMessage(qc: QueryClient, msg: WsMessage): void {
@@ -29,6 +29,29 @@ export function applyMessage(qc: QueryClient, msg: WsMessage): void {
     case 'scan:done':
       qc.setQueryData(['scan'], null);
       qc.setQueryData<StatusResponse>(['status'], (s) => s && { ...s, scanning: false });
+      break;
+    case 'devices:stale':
+      void qc.invalidateQueries({ queryKey: ['devices'] });
+      break;
+    case 'changes:updated':
+      void qc.invalidateQueries({ queryKey: ['changes'] });
+      void qc.invalidateQueries({ queryKey: ['devices'] });
+      break;
+    case 'job:progress': {
+      const current = qc.getQueryData<{ job: JobView | null }>(['job'])?.job;
+      if (!current || current.id !== msg.jobId) {
+        void qc.invalidateQueries({ queryKey: ['job'] });
+        break;
+      }
+      qc.setQueryData<{ job: JobView | null }>(['job'], {
+        job: { ...current, items: current.items.map((i) => (i.deviceId === msg.item.deviceId ? msg.item : i)) },
+      });
+      break;
+    }
+    case 'job:done':
+      qc.setQueryData(['job'], { job: msg.job });
+      void qc.invalidateQueries({ queryKey: ['changes'] });
+      void qc.invalidateQueries({ queryKey: ['devices'] });
       break;
   }
 }
