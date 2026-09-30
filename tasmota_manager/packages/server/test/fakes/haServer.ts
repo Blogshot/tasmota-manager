@@ -12,6 +12,8 @@ export interface FakeHaData {
 export class FakeHa {
   readonly requests: string[] = [];
   connections = 0;
+  /** true: search/related bleibt unbeantwortet. */
+  failRelated = false;
   port = 0;
   private wss: WebSocketServer | null = null;
   private readonly clients = new Set<WebSocket>();
@@ -36,6 +38,10 @@ export class FakeHa {
 
   emitEvent(eventType: string): void {
     for (const ws of this.clients) ws.send(JSON.stringify({ id: 1, type: 'event', event: { event_type: eventType, data: {} } }));
+  }
+
+  dropClients(): void {
+    for (const ws of this.clients) ws.terminate();
   }
 
   async stop(): Promise<void> {
@@ -77,6 +83,7 @@ export class FakeHa {
           ok(this.data.areas);
           break;
         case 'search/related':
+          if (this.failRelated) break;
           ok(this.data.related[msg.item_id ?? ''] ?? {});
           break;
         default:

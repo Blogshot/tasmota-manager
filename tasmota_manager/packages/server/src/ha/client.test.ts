@@ -72,11 +72,57 @@ describe('HaClient', () => {
 
   it('gibt bei ungültigem Token auf, statt ständig neu zu verbinden', async () => {
     ha = await new FakeHa(data()).start();
-    client = new HaClient({ url: ha.url, token: 'falsch' }, silentLogger, { debounceMs: 20 });
+    client = new HaClient({ url: ha.url, token: 'falsch' }, silentLogger, { debounceMs: 20, reconnectMs: 20 });
     client.start();
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(client.ready).toBe(false);
     expect(client.link('AABBCC112233')).toBeNull();
     expect(ha.connections).toBe(1);
+  });
+
+  it('verbindet nach einem Verbindungsabbruch neu', async () => {
+    ha = await new FakeHa(data()).start();
+    client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20, reconnectMs: 20 });
+    client.start();
+    await waitFor(() => client?.link('AABBCC112233'));
+    ha.data.areas = [{ area_id: 'bad', name: 'Neu' }];
+    ha.dropClients();
+    await waitFor(() => client?.link('AABBCC112233')?.areaName === 'Neu');
+    expect(ha.connections).toBe(2);
+  });
+
+  it('hinterlässt nach stop() keine Timer und behält die letzten Daten', async () => {
+    ha = await new FakeHa(data()).start();
+    client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20, refreshMs: 20 });
+    client.start();
+    await waitFor(() => client?.link('AABBCC112233'));
+    await client.stop();
+    const count = ha.requests.length;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(ha.requests.length).toBe(count);
+    expect(client.link('AABBCC112233')?.areaName).toBe('Bad');
+  });
+
+  it('behält die bisherigen Daten, wenn search/related ausfällt', async () => {
+    ha = await new FakeHa(data()).start();
+    client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20, requestTimeoutMs: 50 });
+    let changed = 0;
+    client.on('changed', () => changed++);
+    client.start();
+    await waitFor(() => client?.link('AABBCC112233'));
+    const before = changed;
+    ha.failRelated = true;
+    ha.data.areas = [{ area_id: 'bad', name: 'Neu' }];
+    ha.emitEvent('area_registry_updated');
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(changed).toBe(before);
+    expect(client.link('AABBCC112233')?.areaName).toBe('Bad');
+    expect(client.link('AABBCC112233')?.automations).toHaveLength(2);
+  });
+
+  it('wirft bei einer ungültigen URL nicht', () => {
+    client = new HaClient({ url: 'kein-url', token: 'x' }, silentLogger);
+    expect(() => client?.start()).not.toThrow();
+    expect(client.ready).toBe(false);
   });
 });

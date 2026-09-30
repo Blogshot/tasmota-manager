@@ -9,6 +9,8 @@ export interface HaClientOptions {
   refreshMs?: number;
   debounceMs?: number;
   requestTimeoutMs?: number;
+  /** Anfangsverzögerung für Neuverbindungen (Standard 1000). */
+  reconnectMs?: number;
 }
 
 interface RegistryDevice {
@@ -31,6 +33,9 @@ interface Pending {
   reject: (err: Error) => void;
   timer: NodeJS.Timeout;
 }
+
+/** HA hat die Anfrage beantwortet, aber mit einem Fehler. */
+class HaResultError extends Error {}
 
 const EVENT_TYPES = ['device_registry_updated', 'entity_registry_updated', 'area_registry_updated'];
 const MAX_BACKOFF_MS = 60_000;
@@ -63,7 +68,7 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
   private refreshTimer: NodeJS.Timeout | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private backoffMs = 1000;
+  private backoffMs: number;
   private stopped = false;
 
   constructor(
@@ -72,6 +77,7 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
     private readonly opts: HaClientOptions = {},
   ) {
     super();
+    this.backoffMs = opts.reconnectMs ?? 1000;
   }
 
   link(mac: string): HaLink | null {
@@ -112,6 +118,8 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
         const related = await this.call('search/related', { item_type: 'device', item_id: device.id });
         automationIds = isObj(related) && Array.isArray(related.automation) ? (related.automation as string[]) : [];
       } catch (err) {
+        // Nur eine Fehlerantwort von HA ist tolerierbar; Verbindungsverlust, Timeout oder stop() brechen ab.
+        if (!(err instanceof HaResultError)) throw err;
         this.log.debug({ err, device: device.id }, 'Automationen konnten nicht ermittelt werden');
       }
       next.set(mac, {
@@ -124,12 +132,21 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
         }),
       });
     }
+    if (this.stopped) return;
     this.links = next;
     this.emit('changed');
   }
 
   private connect(): void {
-    const ws = new WebSocket(this.conn.url);
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(this.conn.url);
+    } catch (err) {
+      // Eine fehlerhafte URL repariert sich nicht von selbst.
+      this.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Ungültige Home-Assistant-URL');
+      this.stopped = true;
+      return;
+    }
     this.ws = ws;
     ws.on('message', (data) => this.onMessage(ws, data.toString()));
     ws.on('close', () => this.onClose(ws));
@@ -157,7 +174,7 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
       case 'auth_ok':
         this.backoffMs = 1000;
         this.ready = true;
-        void this.afterAuth();
+        void this.afterAuth(ws);
         break;
       case 'result':
         this.settle(msg);
@@ -168,13 +185,14 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
     }
   }
 
-  private async afterAuth(): Promise<void> {
+  private async afterAuth(ws: WebSocket): Promise<void> {
     try {
       for (const eventType of EVENT_TYPES) await this.call('subscribe_events', { event_type: eventType });
       await this.refresh();
     } catch (err) {
       this.log.warn({ err }, 'HA-Daten konnten nicht geladen werden');
     }
+    if (this.stopped || this.ws !== ws) return;
     this.refreshTimer ??= setInterval(() => {
       this.refresh().catch((err: unknown) => this.log.warn({ err }, 'HA-Aktualisierung fehlgeschlagen'));
     }, this.opts.refreshMs ?? 300_000);
@@ -184,6 +202,8 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
     if (this.ws !== ws) return;
     this.ready = false;
     this.ws = null;
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.refreshTimer = null;
     this.rejectAll(new Error('HA-Verbindung getrennt'));
     if (this.stopped) return;
     this.reconnectTimer = setTimeout(() => this.connect(), this.backoffMs);
@@ -219,7 +239,7 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
     clearTimeout(pending.timer);
     this.pending.delete(id);
     if (msg.success) pending.resolve(msg.result);
-    else pending.reject(new Error(String((isObj(msg.error) && msg.error.message) || 'HA-Fehler')));
+    else pending.reject(new HaResultError(String((isObj(msg.error) && msg.error.message) || 'HA-Fehler')));
   }
 
   private rejectAll(err: Error): void {
