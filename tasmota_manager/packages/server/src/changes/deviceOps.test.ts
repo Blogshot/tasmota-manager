@@ -77,4 +77,23 @@ describe('DeviceOps', () => {
     await expect(ops.send(MAC, 'Foo', true)).rejects.toMatchObject({ code: 'rejected' });
     expect(gateway.calls).toBe(1);
   });
+
+  it('erkennt auch einen zweiten Neustart kurz nach dem ersten', async () => {
+    const ops = await withFake(150);
+    const before = await ops.uptime(MAC);
+    await ops.send(MAC, 'Restart 1', false);
+    await ops.waitForRestart(MAC, before);
+    expect(fake?.restarts).toBe(1);
+    const again = await ops.uptime(MAC);
+    await ops.send(MAC, 'Restart 1', false);
+    await ops.waitForRestart(MAC, again);
+    expect(fake?.restarts).toBe(2);
+  });
+
+  it('gibt echte Fehler beim Warten sofort weiter', async () => {
+    const gateway = new StubGateway([new TransportError('auth', 'x')]);
+    const ops = new DeviceOps(gateway as unknown as DeviceGateway, { restartTimeoutMs: 1000, pollIntervalMs: 10 });
+    await expect(ops.waitForRestart(MAC, 100)).rejects.toMatchObject({ code: 'auth' });
+    expect(gateway.calls).toBe(1);
+  });
 });

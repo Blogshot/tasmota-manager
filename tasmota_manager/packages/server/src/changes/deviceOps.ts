@@ -10,6 +10,8 @@ export interface DeviceOpsOptions {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const MAX_BACKOFF_MS = 10_000;
+const RESTART_POLL_TIMEOUT_MS = 3000;
+const TRANSIENT = new Set<string>(['unreachable', 'offline', 'timeout']);
 
 export class DeviceOps {
   readonly restartTimeoutMs: number;
@@ -33,15 +35,23 @@ export class DeviceOps {
     return uptime;
   }
 
-  /** Der Online-Status allein reicht nicht: Tasmota startet erst 1–2 s nach dem Befehl neu. */
+  /**
+   * Ein Neustart gilt als erfolgt, wenn die Laufzeit kleiner ist als vorher – oder wenn das Gerät
+   * zwischendurch nicht erreichbar war und wieder antwortet (nötig, wenn es kurz zuvor schon neu gestartet hat
+   * und die Laufzeit deshalb nicht kleiner werden kann). Der Online-Status allein reicht nicht.
+   */
   async waitForRestart(deviceId: string, uptimeBefore: number): Promise<void> {
     const deadline = Date.now() + this.restartTimeoutMs;
+    let sawDown = false;
     while (Date.now() < deadline) {
       await sleep(this.pollMs);
       try {
-        if ((await this.uptime(deviceId, Math.min(this.commandTimeoutMs, 3000))) < uptimeBefore) return;
-      } catch {
-        // Gerät startet noch neu.
+        const uptime = await this.uptime(deviceId, Math.min(this.commandTimeoutMs, RESTART_POLL_TIMEOUT_MS));
+        if (uptime < uptimeBefore || sawDown) return;
+      } catch (err) {
+        // Nur vorübergehende Transportfehler bedeuten „startet noch neu"; alles andere ist ein echter Fehler.
+        if (!(err instanceof TransportError) || !TRANSIENT.has(err.code)) throw err;
+        sawDown = true;
       }
     }
     throw new TransportError(
