@@ -25,6 +25,9 @@ describe('deviceType', () => {
     expect(deviceType(status({ POWER: 'ON' }), sensors({}), 'Sonoff Basic')).toBe('Schalter');
     expect(deviceType(status({ POWER1: 'ON', POWER2: 'ON', POWER3: 'ON', POWER4: 'ON' }), sensors({}), null)).toBe('Schalter 4-fach');
     expect(deviceType(status({}), sensors({}), null)).toBeNull();
+    expect(deviceType(status({ POWER: 'ON' }), sensors({ ESP32: { Temperature: 40.1 } }), null)).toBe('Schalter');
+    expect(deviceType(status({ POWER: 'ON' }), sensors({ ESP32: { Temperature: 40 }, ENERGY: { Power: 5, Temperature: 30 } }), null)).toBe('Steckdose');
+    expect(deviceType(status({ POWER: 'ON' }), sensors({ ESP32: { Temperature: 40 }, DS18B20: { Temperature: 21 } }), null)).toBe('Klima');
   });
 });
 

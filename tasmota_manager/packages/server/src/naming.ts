@@ -23,7 +23,14 @@ export function relayCount(status0: unknown): number {
 
 function hasClimateSensor(sns: Record<string, unknown>): boolean {
   return Object.entries(sns).some(
-    ([key, value]) => key === 'Temperature' || key === 'Humidity' || (isObj(value) && ('Temperature' in value || 'Humidity' in value)),
+    ([key, value]) => {
+      // Ignore internal chip temperature (ESP32, ESP32-S2, etc.) and ENERGY blocks
+      if (/^ESP32/i.test(key) || key === 'ENERGY') return false;
+      // Top-level Temperature/Humidity keys count
+      if (key === 'Temperature' || key === 'Humidity') return true;
+      // Temperature/Humidity in other sensor blocks (e.g., DS18B20)
+      return isObj(value) && ('Temperature' in value || 'Humidity' in value);
+    },
   );
 }
 
