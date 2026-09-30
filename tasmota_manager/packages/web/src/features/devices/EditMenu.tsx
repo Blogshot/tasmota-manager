@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 import { BatchCommandsDialog } from './BatchCommandsDialog';
 import { BatchRuleDialog } from './BatchRuleDialog';
@@ -25,7 +26,7 @@ export function EditMenu({ devices }: { devices: Device[] }) {
       void qc.invalidateQueries({ queryKey: ['devices'] });
       void qc.invalidateQueries({ queryKey: ['changes'] });
     },
-    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
+    onError: (err: Error) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
   const onOpenChange = (open: boolean) => {
     if (!open) setDialog(null);

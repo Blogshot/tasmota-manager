@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 import { Console } from './Console';
 import { RulesTab } from './detail/RulesTab';
@@ -46,8 +47,8 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
   const command = useMutation({
     mutationFn: (cmd: string) => api.command(deviceId, cmd),
     onSuccess: (result: CommandResult) =>
-      result.ok ? toast.success(JSON.stringify(result.response)) : toast.error(t('common.error', { message: result.message })),
-    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
+      result.ok ? toast.success(JSON.stringify(result.response)) : toast.error(t('common.error', { message: errorText(t, result) })),
+    onError: (err: Error) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
   const remove = useMutation({
     mutationFn: () => api.removeDevice(deviceId),
@@ -55,7 +56,7 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
       void qc.invalidateQueries({ queryKey: ['devices'] });
       onClose();
     },
-    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
+    onError: (err: Error) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
 
   if (!device) return null;
@@ -165,7 +166,7 @@ function DeviceSettingsForm({ device, onSwitch }: { device: Device; onSwitch: (i
       void qc.invalidateQueries({ queryKey: ['devices'] });
       if (updated.id !== device.id) onSwitch(updated.id);
     },
-    onError: (err) => toast.error(t('common.error', { message: err.message })),
+    onError: (err) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
 
   const submit = (e: FormEvent) => {

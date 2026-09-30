@@ -7,6 +7,10 @@ Verwaltet alle Tasmota-Geräte im Netzwerk über eine moderne Oberfläche in der
 - **MQTT:** Ist die Mosquitto-App (oder ein anderer MQTT-Dienst) in Home Assistant eingerichtet, verbindet sich die App automatisch. Geräte erscheinen über Tasmota-Discovery (`SetOption19 0`, Standard ab Tasmota 9.x).
 - **HTTP:** Unter *Geräte → Netzwerk scannen* werden die in den Einstellungen hinterlegten Bereiche abgesucht (standardmäßig das Netz des Home-Assistant-Hosts). Einzelne Geräte lassen sich über *Gerät hinzufügen* per IP eintragen.
 
+## Schalten
+
+Geräte mit Relais oder Licht zeigen in der Spalte **Schalten** pro Ausgang einen Button mit dem aktuellen Zustand. Ein Klick schaltet sofort um. Das ist die einzige Aktion in der Tabelle, die nicht vorgemerkt wird. Bei MQTT-Geräten folgt die Anzeige auch Schaltvorgängen am Gerät oder in Home Assistant; bei reinen HTTP-Geräten erst beim nächsten Abfrageintervall.
+
 ## Passwörter
 
 Haben Geräte ein Web-Passwort, hinterlege ein globales Passwort in den Einstellungen. Weicht ein einzelnes Gerät davon ab, setzt du das Passwort in der Detailansicht des Geräts. Geräte, die ein Passwort verlangen, erscheinen mit dem Status „Passwort erforderlich“.
@@ -29,7 +33,11 @@ Beim Batch-Lauf gilt:
 
 ## Verknüpfung mit Home Assistant
 
-Die App liest über die Home-Assistant-API, welche Entitäten und Automationen zu einem Tasmota-Gerät gehören, und verlinkt sie in der Geräteübersicht. Den Bereich des Geräts in Home Assistant nutzt sie außerdem für Namensvorschläge.
+Die App liest über die Home-Assistant-API, welche Entitäten und Automationen zu einem Tasmota-Gerät gehören, und verlinkt sie in der Geräteübersicht. Den Bereich des Geräts in Home Assistant nutzt sie außerdem für Namensvorschläge. Die Entitäten-Spalte zeigt Schalter, Lichter und Sensoren; Diagnose- und Konfigurations-Entitäten sowie deaktivierte Entitäten blendet sie aus.
+
+## Sprache
+
+Unter **Einstellungen → Sprache** stehen Englisch, Deutsch, Französisch, Spanisch, Italienisch und Niederländisch zur Wahl. Mit **Automatisch** folgt die Oberfläche der Sprache deines Home-Assistant-Profils und die Namensvorschläge der Systemsprache von Home Assistant; ist die Sprache nicht dabei, gilt Englisch. Die Übersetzungen ins Französische, Spanische, Italienische und Niederländische sind maschinell erstellt und nicht von Muttersprachlern geprüft.
 
 ## Sicherheit
 

@@ -17,6 +17,7 @@ const SETTINGS = {
   backupRetention: 10,
   firmwarePort: 8266,
   hasGlobalPassword: false,
+  language: 'auto' as const,
 };
 
 describe('SettingsPage', () => {
@@ -57,8 +58,17 @@ describe('SettingsPage', () => {
       expect(api.updateSettings).toHaveBeenCalledWith({
         scanCidrs: ['10.0.0.0/24', '10.0.1.0/24'],
         pollIntervalSec: 30,
+        language: 'auto',
         globalPassword: 'geheim',
       }),
     );
+  });
+
+  it('speichert die gewählte Sprache', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+    await user.selectOptions(await screen.findByLabelText('Sprache'), 'Français');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ language: 'fr' })));
   });
 });

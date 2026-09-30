@@ -1,6 +1,7 @@
 import type { SettingDef } from '@tm/shared';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { validationText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/messages';
 import { selectClass } from '@/lib/styles';
@@ -65,7 +66,7 @@ export function SettingsFields({ defs, values, errors, onChange, current, idPref
                       onChange={(e) => onChange(def.key, e.target.value)}
                     />
                   )}
-                  {errors[def.key] && <p className="text-xs text-destructive">{errors[def.key]}</p>}
+                  {errors[def.key] && <p className="text-xs text-destructive">{validationText(t, errors[def.key] ?? '')}</p>}
                 </div>
               );
             })}
@@ -87,7 +88,7 @@ export function collectSettings(
     if (raw === undefined || raw.trim() === '') continue;
     const parsed = def.schema.safeParse(raw);
     if (parsed.success) settings[def.key] = parsed.data;
-    else errors[def.key] = parsed.error.issues[0]?.message ?? 'ungültig';
+    else errors[def.key] = parsed.error.issues[0]?.message ?? 'invalid.invalid';
   }
   return { settings, errors };
 }

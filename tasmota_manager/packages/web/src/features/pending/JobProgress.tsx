@@ -1,5 +1,6 @@
 import type { JobItemStatus, JobView } from '@tm/shared';
 import { Card, CardContent } from '@/components/ui/card';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 
 const STATUS_CLASS: Record<JobItemStatus, string> = {
@@ -25,7 +26,7 @@ export function JobProgress({ job }: { job: JobView }) {
               <span className="font-medium">{item.deviceName}</span>
               <span className={STATUS_CLASS[item.status]}>{t(`job.status.${item.status}`)}</span>
               {item.step && <span className="text-muted-foreground">{t(`job.step.${item.step}`)}</span>}
-              {item.error && <span className="w-full text-xs text-destructive">{item.error}</span>}
+              {item.error && <span className="w-full text-xs text-destructive">{errorText(t, item.error)}</span>}
             </li>
           ))}
         </ul>

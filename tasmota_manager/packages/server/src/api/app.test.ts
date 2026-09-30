@@ -89,6 +89,14 @@ describe('Einstellungen, Status und Scan', () => {
     expect((await app.inject('/api/settings')).body).not.toContain('geheim');
   });
 
+  it('speichert die Sprache und lehnt unbekannte ab', async () => {
+    const { app } = await setup();
+    expect((await app.inject('/api/settings')).json()).toMatchObject({ language: 'auto' });
+    const saved = await app.inject({ method: 'PUT', url: '/api/settings', payload: { language: 'nl' } });
+    expect(saved.json()).toMatchObject({ language: 'nl' });
+    expect((await app.inject({ method: 'PUT', url: '/api/settings', payload: { language: 'xx' } })).statusCode).toBe(400);
+  });
+
   it('liefert den Status', async () => {
     const { app } = await setup();
     expect((await app.inject('/api/status')).json()).toEqual({ mqtt: 'disabled', version: 'test', scanning: false });

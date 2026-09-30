@@ -40,7 +40,7 @@ const GROUPS: PendingDevice[] = [
     changes: [
       change({ id: 1 }),
       change({ id: 2, key: 'Rule1', value: 'ON x DO y ENDON', before: null }),
-      change({ id: 3, kind: 'command', key: null, value: 'Power ON', before: null, error: 'rejected: Gerät lehnt ab' }),
+      change({ id: 3, kind: 'command', key: null, value: 'Power ON', before: null, error: 'rejected: Device rejects the command "Power"' }),
     ],
   },
   { deviceId: 'B', deviceName: 'Bad', changes: [change({ id: 4, deviceId: 'B', key: 'MqttPassword', value: '••••', before: null })] },
@@ -76,7 +76,7 @@ describe('PendingPage', () => {
     expect(within(keller).getByText('Zustand nach Stromausfall')).toBeInTheDocument();
     expect(within(keller).getByText('3')).toHaveClass('line-through');
     expect(within(keller).getByText('Power ON')).toBeInTheDocument();
-    expect(within(keller).getByText('rejected: Gerät lehnt ab')).toBeInTheDocument();
+    expect(within(keller).getByText('Das Gerät hat den Befehl abgelehnt')).toBeInTheDocument();
     expect(within(screen.getByTestId('pending-B')).getByText('••••')).toBeInTheDocument();
   });
 

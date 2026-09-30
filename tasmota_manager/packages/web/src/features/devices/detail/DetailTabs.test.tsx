@@ -79,7 +79,7 @@ describe('Detail-Tabs', () => {
   it('zeigt Lesefehler von Rules an', async () => {
     vi.mocked(api.rules).mockRejectedValue(new Error('offline'));
     await open('Rules');
-    expect(await screen.findByText('Rules konnten nicht gelesen werden: offline')).toBeInTheDocument();
+    expect(await screen.findByText('Rules konnten nicht gelesen werden: Gerät nicht erreichbar')).toBeInTheDocument();
   });
 
   it('setzt Formularzustand beim Wechsel auf ein anderes Gerät zurück', async () => {

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 
 export function AddDeviceDialog() {
@@ -21,7 +22,7 @@ export function AddDeviceDialog() {
       setOpen(false);
       setIp('');
     },
-    onError: (err) => toast.error(t('common.error', { message: err.message })),
+    onError: (err) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
   return (
     <Dialog open={open} onOpenChange={setOpen}>

@@ -4,6 +4,7 @@ import { TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 
 export function NameCell({ device }: { device: Device }) {
@@ -16,7 +17,7 @@ export function NameCell({ device }: { device: Device }) {
       void qc.invalidateQueries({ queryKey: ['devices'] });
       void qc.invalidateQueries({ queryKey: ['changes'] });
     },
-    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
+    onError: (err: Error) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
 
   return (

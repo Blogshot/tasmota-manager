@@ -61,6 +61,6 @@ describe('DeviceSheet', () => {
     const user = userEvent.setup();
     renderWithProviders(<DeviceSheet deviceId="AABBCC112233" onClose={vi.fn()} onSwitch={vi.fn()} />);
     await user.click(await screen.findByRole('button', { name: 'Schalten' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Fehler: offline'));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Fehler: Gerät nicht erreichbar'));
   });
 });

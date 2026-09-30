@@ -4,6 +4,7 @@ import { type FormEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 
 interface Entry {
@@ -44,7 +45,7 @@ export function Console({ deviceId }: { deviceId: string }) {
               {entry.result.ok && <span className="text-muted-foreground">{t('console.via', { channel: entry.result.channel.toUpperCase() })}</span>}
             </div>
             <pre className={`whitespace-pre-wrap ${entry.result.ok ? '' : 'text-destructive'}`}>
-              {entry.result.ok ? JSON.stringify(entry.result.response, null, 2) : `${entry.result.code}: ${entry.result.message}`}
+              {entry.result.ok ? JSON.stringify(entry.result.response, null, 2) : `${entry.result.code}: ${errorText(t, entry.result)}`}
             </pre>
           </div>
         ))}

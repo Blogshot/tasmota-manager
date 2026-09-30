@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { settingLabel } from '@/features/changes/labels';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 import { JobProgress } from './JobProgress';
 import { liveKind, liveValue } from './liveValue';
@@ -26,7 +27,7 @@ export function PendingPage() {
   const { data: jobData } = useQuery({ queryKey: ['job'], queryFn: api.currentJob });
   const job = jobData?.job ?? null;
   const running = job?.status === 'running';
-  const onError = (err: Error) => toast.error(t('common.error', { message: err.message }));
+  const onError = (err: Error) => toast.error(t('common.error', { message: errorText(t, err) }));
 
   const apply = useMutation({
     mutationFn: (deviceIds?: string[]) => api.apply(deviceIds),
@@ -78,7 +79,7 @@ function PendingGroup({ group, disabled }: { group: PendingDevice; disabled: boo
   const discard = useMutation({
     mutationFn: () => api.discardDevice(group.deviceId),
     onSuccess: invalidate,
-    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
+    onError: (err: Error) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
   return (
     <Card data-testid={`pending-${group.deviceId}`}>
@@ -105,7 +106,7 @@ function PendingRow({ change, disabled }: { change: PendingChange; disabled: boo
   const discard = useMutation({
     mutationFn: () => api.discardChange(change.id),
     onSuccess: invalidate,
-    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
+    onError: (err: Error) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
   const label = change.kind === 'command' ? t('pending.command') : settingLabel(t, change.key ?? '');
   return (
@@ -121,7 +122,7 @@ function PendingRow({ change, disabled }: { change: PendingChange; disabled: boo
       <Button variant="ghost" size="sm" className="ml-auto" disabled={disabled} onClick={() => discard.mutate()}>
         {t('pending.discard')}
       </Button>
-      {change.error && <span className="w-full text-xs text-destructive">{change.error}</span>}
+      {change.error && <span className="w-full text-xs text-destructive">{errorText(t, change.error)}</span>}
     </li>
   );
 }

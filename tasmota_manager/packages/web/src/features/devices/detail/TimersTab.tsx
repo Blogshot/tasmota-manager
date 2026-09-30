@@ -7,12 +7,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useStage } from '@/features/changes/useStage';
 import { TimerForm, timerSummary } from '@/features/timers/TimerForm';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 
 export function TimersTab({ deviceId }: { deviceId: string }) {
   const t = useT();
   const { data, error } = useQuery({ queryKey: ['timers', deviceId], queryFn: () => api.timers(deviceId) });
-  if (error) return <p className="text-sm text-destructive">{t('timers.loadError', { message: error.message })}</p>;
+  if (error) return <p className="text-sm text-destructive">{t('timers.loadError', { message: errorText(t, error) })}</p>;
   if (!data) return <p className="text-sm text-muted-foreground">…</p>;
   return <TimersEditor deviceId={deviceId} initial={data} />;
 }

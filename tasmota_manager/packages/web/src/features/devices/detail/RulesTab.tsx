@@ -6,12 +6,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useStage } from '@/features/changes/useStage';
 import { RuleEditor } from '@/features/rules/RuleEditor';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 
 export function RulesTab({ deviceId }: { deviceId: string }) {
   const t = useT();
   const { data, error } = useQuery({ queryKey: ['rules', deviceId], queryFn: () => api.rules(deviceId) });
-  if (error) return <p className="text-sm text-destructive">{t('rules.loadError', { message: error.message })}</p>;
+  if (error) return <p className="text-sm text-destructive">{t('rules.loadError', { message: errorText(t, error) })}</p>;
   if (!data) return <p className="text-sm text-muted-foreground">…</p>;
   return (
     <div className="space-y-6">

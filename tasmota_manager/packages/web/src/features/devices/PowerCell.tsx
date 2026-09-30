@@ -3,6 +3,7 @@ import type { Device } from '@tm/shared';
 import { Power } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -15,10 +16,10 @@ export function PowerCell({ device }: { device: Device }) {
   const toggle = useMutation({
     mutationFn: (index: number) => api.command(device.id, `Power${index + 1} TOGGLE`),
     onSuccess: (result) => {
-      if (!result.ok) toast.error(t('common.error', { message: result.message }));
+      if (!result.ok) toast.error(t('common.error', { message: errorText(t, result) }));
       void qc.invalidateQueries({ queryKey: ['devices'] });
     },
-    onError: (err: Error) => toast.error(t('common.error', { message: err.message })),
+    onError: (err: Error) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
 
   if (device.power.length === 0) return <>—</>;

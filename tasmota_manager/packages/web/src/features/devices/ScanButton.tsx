@@ -3,6 +3,7 @@ import type { ScanProgress, StatusResponse } from '@tm/shared';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
+import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 
 export function ScanButton() {
@@ -21,7 +22,7 @@ export function ScanButton() {
       toast(t('devices.scanStarted'));
       qc.setQueryData<StatusResponse>(['status'], (s) => s && { ...s, scanning: true });
     },
-    onError: (err) => toast.error(t('common.error', { message: err.message })),
+    onError: (err) => toast.error(t('common.error', { message: errorText(t, err) })),
   });
   const scanning = status?.scanning ?? false;
   return (
