@@ -2,7 +2,7 @@
 
 A Home Assistant app (add-on) that manages all Tasmota devices on your network from the sidebar: find them, see their state, and change settings on many devices in one controlled batch run.
 
-[![Add this repository to your Home Assistant instance.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgit.knott.ac%2FSascha%2Ftasmota-manager)
+[![Add this repository to your Home Assistant instance.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBlogshot%2Ftasmota-manager)
 
 > **Early software.** Bugs are likely, including ones that lock a device out of Home Assistant (for example through wrong MQTT settings) or overwrite rules and timers. There is no backup function yet. Back up a device's configuration in its own web UI before you change it, and start with one or two devices you can easily recover.
 
@@ -40,7 +40,7 @@ The images below are placeholders and will be replaced with real screenshots.
 Click the button above, or add the repository by hand:
 
 1. In Home Assistant open **Settings → Apps → App store → ⋮ → Repositories**.
-2. Add `https://git.knott.ac/Sascha/tasmota-manager`.
+2. Add `https://github.com/Blogshot/tasmota-manager`.
 3. Install **Tasmota Manager** and open it from the sidebar.
 
 Supported architectures are amd64 and aarch64. The image is built locally on install, which takes a few minutes.
