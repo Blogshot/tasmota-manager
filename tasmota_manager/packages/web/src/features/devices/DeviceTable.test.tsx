@@ -35,12 +35,30 @@ describe('DeviceTable', () => {
   it('verlinkt HA-Entitäten und Automationen im Hauptfenster', () => {
     renderTable();
     const entity = screen.getByRole('link', { name: 'Temperatur Bad' });
-    expect(entity).toHaveAttribute('href', '/config/entities?search=sensor.bad_temp');
+    // HA kann die Entitätenliste nicht per URL durchsuchen; der Link führt deshalb auf die Geräteseite.
+    expect(entity).toHaveAttribute('href', '/config/devices/device/dev1');
     expect(entity).toHaveAttribute('target', '_top');
     expect(screen.getByRole('link', { name: 'Licht Bad' })).toHaveAttribute('href', '/config/automation/edit/1700000000');
     // Automationen ohne ID (YAML) sind nicht verlinkbar.
     expect(screen.queryByRole('link', { name: 'YAML-Automation' })).not.toBeInTheDocument();
     expect(screen.getByText('YAML-Automation')).toBeInTheDocument();
+  });
+
+  it('zeigt höchstens drei Entitäten und den Rest hinter einem „…"-Button', async () => {
+    const names = ['Schalter', 'Leistung', 'Spannung', 'Strom', 'Energie heute'];
+    const device = makeDevice({
+      id: 'C',
+      ha: { deviceId: 'dev3', areaName: null, entities: names.map((name, i) => ({ entityId: `sensor.e${i}`, name })), automations: [] },
+    });
+    const onOpen = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<DeviceTable devices={[device]} rowSelection={{}} onRowSelectionChange={vi.fn()} onOpen={onOpen} />);
+    expect(screen.getByRole('link', { name: 'Spannung' })).toBeInTheDocument();
+    expect(screen.queryByText('Strom')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '2 weitere Entitäten' }));
+    expect(await screen.findByRole('menuitem', { name: 'Strom' })).toHaveAttribute('href', '/config/devices/device/dev3');
+    expect(screen.getByRole('menuitem', { name: 'Energie heute' })).toBeInTheDocument();
+    expect(onOpen).not.toHaveBeenCalled();
   });
 
   it('merkt den Namensvorschlag per Klick vor, ohne die Detailansicht zu öffnen', async () => {

@@ -83,6 +83,7 @@ export const nl: Record<MessageKey, string> = {
   'devices.power.on': 'Uitgang {n} is aan – klik om uit te schakelen',
   'devices.power.off': 'Uitgang {n} is uit – klik om in te schakelen',
   'devices.col.entities': 'Entiteiten',
+  'devices.entities.more': 'nog {count} entiteiten',
   'devices.col.automations': 'Automatiseringen',
   'devices.suggestion.title': 'Naamvoorstel overnemen (wordt klaargezet)',
   'devices.pendingDot': '{count} wijzigingen in afwachting',

@@ -83,6 +83,7 @@ export const it: Record<MessageKey, string> = {
   'devices.power.on': 'L’uscita {n} è accesa – clic per spegnere',
   'devices.power.off': 'L’uscita {n} è spenta – clic per accendere',
   'devices.col.entities': 'Entità',
+  'devices.entities.more': 'altre {count} entità',
   'devices.col.automations': 'Automazioni',
   'devices.suggestion.title': 'Applica il nome suggerito (messo in sospeso)',
   'devices.pendingDot': '{count} modifiche in sospeso',
