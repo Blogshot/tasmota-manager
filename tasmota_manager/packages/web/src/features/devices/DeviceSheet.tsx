@@ -25,7 +25,7 @@ export function DeviceSheet({ deviceId, onClose, onSwitch }: Props) {
   return (
     <Sheet open={deviceId !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-        {deviceId && <DeviceDetail deviceId={deviceId} onClose={onClose} onSwitch={onSwitch} />}
+        {deviceId && <DeviceDetail key={deviceId} deviceId={deviceId} onClose={onClose} onSwitch={onSwitch} />}
       </SheetContent>
     </Sheet>
   );

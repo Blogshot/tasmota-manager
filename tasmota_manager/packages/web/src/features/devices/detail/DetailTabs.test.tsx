@@ -1,8 +1,10 @@
 import { DEFAULT_TIMER } from '@tm/shared';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
+import { I18nProvider } from '@/lib/i18n';
 import { makeDevice } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
 import { DeviceSheet } from '../DeviceSheet';
@@ -78,5 +80,25 @@ describe('Detail-Tabs', () => {
     vi.mocked(api.rules).mockRejectedValue(new Error('offline'));
     await open('Rules');
     expect(await screen.findByText('Rules konnten nicht gelesen werden: offline')).toBeInTheDocument();
+  });
+
+  it('setzt Formularzustand beim Wechsel auf ein anderes Gerät zurück', async () => {
+    const other = makeDevice({ id: 'B', name: 'Bad' });
+    vi.mocked(api.devices).mockResolvedValue([device, other]);
+    vi.mocked(api.device).mockImplementation(async (id) => ({ ...(id === 'A' ? device : other), status: {} }));
+    const user = userEvent.setup();
+    const { rerender, queryClient } = renderWithProviders(<DeviceSheet deviceId="A" onClose={vi.fn()} onSwitch={vi.fn()} />);
+    await user.click(await screen.findByRole('tab', { name: 'Einstellungen' }));
+    await user.type(await screen.findByLabelText('Syslog-Host'), 'loghost-a');
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider lang="de">
+          <DeviceSheet deviceId="B" onClose={vi.fn()} onSwitch={vi.fn()} />
+        </I18nProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByText('Bad');
+    await user.click(await screen.findByRole('tab', { name: 'Einstellungen' }));
+    expect(await screen.findByLabelText('Syslog-Host')).toHaveValue('');
   });
 });
