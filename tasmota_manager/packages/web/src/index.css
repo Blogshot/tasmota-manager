@@ -84,6 +84,8 @@
 }
 
 .dark {
+    /* Auch native Elemente (Auswahllisten von <select>, Scrollbalken) dunkel zeichnen. */
+    color-scheme: dark;
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -126,5 +128,9 @@
     }
   html {
     @apply font-sans;
+    }
+  /* Die aufgeklappte Liste erbt die Textfarbe des <select>, aber nicht dessen Hintergrund. */
+  select option {
+    @apply bg-popover text-popover-foreground;
     }
 }
