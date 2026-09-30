@@ -156,7 +156,7 @@ export class ApplyRunner extends EventEmitter<{ progress: [number, JobItem]; don
 
     if (!run.aborted) await this.refreshStatus(deviceId);
     store.resolveUnchanged(run.withValues(run.done));
-    for (const [message, changeIds] of run.failuresByMessage()) store.fail(changeIds, message);
+    for (const [message, changeIds] of run.failuresByMessage()) store.failUnchanged(run.withValues(changeIds), message);
     const error = run.firstError();
     this.progress(jobId, deviceId, { status: error === null ? 'success' : 'failed', step: null, error });
   }

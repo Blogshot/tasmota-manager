@@ -212,6 +212,16 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
     this.changed();
   }
 
+  /** Vermerkt den Fehler nur an Einträgen, deren Wert noch dem angewendeten entspricht; ein neu vorgemerkter Wert wurde nie versucht. */
+  failUnchanged(rows: Array<{ id: number; value: string }>, error: string): void {
+    if (rows.length === 0) return;
+    const updatedAt = this.now().toISOString();
+    for (const { id, value } of rows) {
+      this.db.update(pendingChanges).set({ error, updatedAt }).where(and(eq(pendingChanges.id, id), eq(pendingChanges.value, value))).run();
+    }
+    this.changed();
+  }
+
   clearErrors(deviceIds: string[]): void {
     if (deviceIds.length === 0) return;
     this.db.update(pendingChanges).set({ error: null }).where(inArray(pendingChanges.deviceId, deviceIds)).run();

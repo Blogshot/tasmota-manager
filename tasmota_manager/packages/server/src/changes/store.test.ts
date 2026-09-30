@@ -57,6 +57,16 @@ describe('PendingStore', () => {
     expect(store.count()).toBe(0);
   });
 
+  it('vermerkt Fehler nur an unveränderten Werten (failUnchanged)', () => {
+    store.stage({ deviceIds: [A], settings: { LedState: '2' }, source: 'form' });
+    const id = store.forDevice(A)[0]?.id ?? -1;
+    store.stage({ deviceIds: [A], settings: { LedState: '5' }, source: 'form' });
+    store.failUnchanged([{ id, value: '2' }], 'verify_mismatch: alt');
+    expect(store.forDevice(A).map((r) => [r.value, r.error])).toEqual([['5', null]]);
+    store.failUnchanged([{ id, value: '5' }], 'offline: weg');
+    expect(store.forDevice(A).map((r) => [r.value, r.error])).toEqual([['5', 'offline: weg']]);
+  });
+
   it('verwirft Werte gleich dem aktuellen Gerätewert und entfernt dafür bestehende Einträge', () => {
     store.stage({ deviceIds: [A], settings: { PowerOnState: '1' }, source: 'form' });
     expect(store.stage({ deviceIds: [A], settings: { PowerOnState: '3' }, source: 'form' })).toEqual({ staged: 0, skipped: 1 });

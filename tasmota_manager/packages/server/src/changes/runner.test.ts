@@ -186,6 +186,19 @@ describe('ApplyRunner über HTTP', () => {
     expect(c.store.forDevice(MAC).map((r) => r.value)).toEqual(['5']);
   });
 
+  it('heftet den Fehler eines alten Werts nicht an einen zwischenzeitlich neu vorgemerkten', async () => {
+    const c = await httpSetup({ ignore: ['LedState'] });
+    c.store.stage({ deviceIds: [MAC], settings: { LedState: '2' }, source: 'form' });
+    c.runner.on('progress', (_jobId, item) => {
+      if (item.step === 'verify') c.store.stage({ deviceIds: [MAC], settings: { LedState: '5' }, source: 'form' });
+    });
+    c.runner.start();
+    await c.runner.waitIdle();
+    // Der Lauf selbst ist fehlgeschlagen (Wert 2 kam nicht an), die neue Zeile mit Wert 5 wurde aber nie versucht.
+    expect(c.jobs.latest()?.items[0]).toMatchObject({ status: 'failed', error: 'verify_mismatch: Soll „2“, Ist „1“' });
+    expect(c.store.forDevice(MAC).map((r) => [r.value, r.error])).toEqual([['5', null]]);
+  });
+
   it('dedupliziert Geräte-IDs beim Start', async () => {
     const c = await httpSetup();
     c.store.stage({ deviceIds: [MAC], settings: { LedState: '2' }, source: 'form' });
