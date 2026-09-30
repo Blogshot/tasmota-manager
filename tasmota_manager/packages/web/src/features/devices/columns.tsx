@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useT } from '@/lib/i18n';
 import { formatUptime } from './format';
+import { HaAutomationLinks, HaEntityLinks } from './HaLinks';
+import { NameCell } from './NameCell';
 import { StatusDot } from './StatusDot';
 
 const dash = (v: string | number | null) => (v == null || v === '' ? '—' : v);
@@ -34,7 +36,7 @@ export function useDeviceColumns(): ColumnDef<Device>[] {
         enableHiding: false,
       },
       { accessorKey: 'online', header: t('devices.col.status'), sortingFn: 'basic', cell: ({ row }) => <StatusDot device={row.original} /> },
-      { accessorKey: 'name', header: t('devices.col.name'), cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+      { accessorKey: 'name', header: t('devices.col.name'), cell: ({ row }) => <NameCell device={row.original} /> },
       {
         accessorKey: 'ip',
         header: t('devices.col.ip'),
@@ -87,6 +89,18 @@ export function useDeviceColumns(): ColumnDef<Device>[] {
             ))}
           </div>
         ),
+      },
+      {
+        id: 'entities',
+        header: t('devices.col.entities'),
+        accessorFn: (d) => d.ha?.entities.length ?? 0,
+        cell: ({ row }) => <HaEntityLinks device={row.original} />,
+      },
+      {
+        id: 'automations',
+        header: t('devices.col.automations'),
+        accessorFn: (d) => d.ha?.automations.length ?? 0,
+        cell: ({ row }) => <HaAutomationLinks device={row.original} />,
       },
       { accessorKey: 'uptimeSec', header: t('devices.col.uptime'), cell: ({ row }) => formatUptime(row.original.uptimeSec) },
     ],
