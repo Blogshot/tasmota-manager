@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export const ROUTES = ['devices', 'settings'] as const;
+export const ROUTES = ['devices', 'pending', 'settings'] as const;
 export type Route = (typeof ROUTES)[number];
 
 function readRoute(): Route {
