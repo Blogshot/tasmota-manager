@@ -54,9 +54,19 @@ docker build -t tasmota-manager:dev tasmota_manager   # aus der Repo-Wurzel
 2. `tasmota_manager/CHANGELOG.md` ergänzen: neuer Abschnitt `## <Version>` oben, auf Englisch, aus Nutzersicht. HA zeigt diese Datei im Update-Dialog an. Nicht veröffentlichte Zwischenversionen in die nächste veröffentlichte Version zusammenfassen.
 3. Annotierten Git-Tag `v<Version>` auf den Release-Commit setzen; Nachricht = Changelog-Abschnitt.
 4. Nach dem Push (nur auf Ansage): Tag mit pushen (`git push origin main --follow-tags`), Forgejo-Release zum Tag mit dem Changelog-Abschnitt anlegen, Pipeline-Ergebnis abwarten und melden.
+5. GitHub-Spiegelung auslösen (siehe unten) und prüfen, dass Commit und Tag auf GitHub angekommen sind.
 
 ## Infrastruktur
 
 - Remote `origin`: Forgejo `ssh://git@git.knott.ac:222/Sascha/tasmota-manager.git` (öffentlich). Forgejo spiegelt nach GitHub `https://github.com/Blogshot/tasmota-manager`; die README und der Installations-Button verweisen auf GitHub.
+- **Nach jedem Push nach Forgejo die Spiegelung nach GitHub sofort auslösen**, statt auf das Intervall (1 h) zu warten. Der Push-Spiegel hat `sync_on_commit: false`, und die API kann bestehende Spiegel nicht ändern. Auslösen mit dem Token aus der Forgejo-MCP-Konfiguration (`~/.claude.json` → `mcpServers.forgejo.env.FORGEJO_TOKEN`), ohne ihn auszugeben:
+
+  ```bash
+  TOKEN=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.claude.json')))['mcpServers']['forgejo']['env']['FORGEJO_TOKEN'])")
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Authorization: token $TOKEN" \
+    https://git.knott.ac/api/v1/repos/Sascha/tasmota-manager/push_mirrors-sync
+  ```
+
+  Danach prüfen: `curl -s https://api.github.com/repos/Blogshot/tasmota-manager/commits/main` muss den neuen Commit zeigen. Forgejo-Releases werden nicht gespiegelt, nur Commits und Tags.
 - CI: `.forgejo/workflows/ci.yml` auf dem Runner mit Label `swarm-manager` (Test-Job in `node:22`, Image-Build direkt auf dem Runner). Ergebnis per `https://git.knott.ac/api/v1/repos/Sascha/tasmota-manager/actions/tasks` abfragbar.
 - Commit-Trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
