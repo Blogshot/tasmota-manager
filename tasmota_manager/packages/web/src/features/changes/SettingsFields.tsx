@@ -2,6 +2,7 @@ import { type Device, type SettingDef, settingApplies } from '@tm/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { HaFieldSuggestions } from '@/features/changes/HaFieldSuggestions';
 import { LocationTools } from '@/features/location/LocationTools';
 import { validationText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
@@ -31,6 +32,7 @@ export function SettingsFields({ defs, devices, values, errors, onChange, onFast
   const t = useT();
   const applying = (def: SettingDef) => devices.filter((d) => settingApplies(def, d.capabilities)).length;
   const visible = defs.filter((d) => applying(d) > 0);
+  const visibleKeys = new Set(visible.map((d) => d.key));
   const groups = [...new Set(visible.map((d) => d.group))];
   const unknownType = devices.filter((d) => d.capabilities.length === 0).length;
   const hasEnergy = devices.some((d) => d.capabilities.includes('energy'));
@@ -96,6 +98,13 @@ export function SettingsFields({ defs, devices, values, errors, onChange, onFast
                       onChange={(e) => onChange(def.key, e.target.value)}
                     />
                   )}
+                  <HaFieldSuggestions
+                    fieldKey={def.key}
+                    visibleKeys={visibleKeys}
+                    onFill={(filled) => {
+                      for (const [k, v] of Object.entries(filled)) onChange(k, v);
+                    }}
+                  />
                   {def.hint && (
                     <p className={`text-xs ${def.key === 'Interlock' ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'}`}>
                       {t(`hint.${def.key}` as MessageKey)}

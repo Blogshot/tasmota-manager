@@ -267,6 +267,11 @@ export const de = {
   'telePeriod.powerDelta': 'Für schnelle Leistungswerte besser PowerDelta verwenden.',
   'telePeriod.tooShort': 'Tasmota sendet höchstens alle 10 s. Stattdessen eine Regel anlegen, die bei jeder Sensormessung sofort sendet?',
   'telePeriod.offerRule': 'Regel vorschlagen',
+  'suggest.timezone': "Aus Home Assistant: {zone}",
+  'suggest.ntp': "Vorschlag: {server}",
+  'suggest.mqtt': "Broker auf Home Assistant: {host}:{port}",
+  'suggest.mqttUser': "Wie bei deinen anderen Geräten: {user}",
+  'suggest.unit': "Wie in Home Assistant: {unit}",
 } as const;
 
 export type MessageKey = keyof typeof de;
@@ -540,4 +545,9 @@ export const en: Record<MessageKey, string> = {
   'telePeriod.powerDelta': 'For fast power readings, use PowerDelta instead.',
   'telePeriod.tooShort': 'Tasmota sends at most every 10 s. Create a rule instead that sends on every sensor reading?',
   'telePeriod.offerRule': 'Suggest a rule',
+  'suggest.timezone': "From Home Assistant: {zone}",
+  'suggest.ntp': "Suggestion: {server}",
+  'suggest.mqtt': "Broker on Home Assistant: {host}:{port}",
+  'suggest.mqttUser': "As on your other devices: {user}",
+  'suggest.unit': "As in Home Assistant: {unit}",
 };

@@ -269,4 +269,9 @@ export const it: Record<MessageKey, string> = {
   'telePeriod.powerDelta': 'Per valori di potenza rapidi è meglio usare PowerDelta.',
   'telePeriod.tooShort': 'Tasmota invia al massimo ogni 10 s. Creare invece una regola che invia subito a ogni misurazione del sensore?',
   'telePeriod.offerRule': 'Suggerisci una regola',
+  'suggest.timezone': "Da Home Assistant: {zone}",
+  'suggest.ntp': "Suggerimento: {server}",
+  'suggest.mqtt': "Broker su Home Assistant: {host}:{port}",
+  'suggest.mqttUser': "Come sugli altri dispositivi: {user}",
+  'suggest.unit': "Come in Home Assistant: {unit}",
 };
