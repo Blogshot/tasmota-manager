@@ -1,4 +1,4 @@
-import { readFromStatus, resolveLanguage } from '@tm/shared';
+import { resolveLanguage } from '@tm/shared';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +17,7 @@ import { HttpScanner } from './discovery/scanner';
 import { DeviceEnricher } from './enrich';
 import { DeviceGateway } from './gateway';
 import { HaClient } from './ha/client';
-import { buildHaSuggestions } from './haSuggestions';
+import { haSuggestionsFrom } from './haSuggestions';
 import { createLogger } from './logger';
 import { DeviceRegistry } from './registry';
 import { SettingsStore, defaultSettings } from './settings';
@@ -106,17 +106,7 @@ export async function startServer(config: AppConfig, overrides: StartOverrides =
     version: overrides.version ?? 'dev',
     mqttStatus: () => mqtt?.status ?? 'disabled',
     haLocation: () => ha?.location ?? null,
-    haSuggestions: () =>
-      buildHaSuggestions({
-        ...(ha?.config ?? { timeZone: null, country: null, fahrenheit: null }),
-        mqttOnHa: config.mqtt?.onHa ?? false,
-        mqttPort: config.mqtt ? Number(new URL(config.mqtt.url).port || 1883) : null,
-        hostIp: detectHostIp(),
-        deviceMqttUsers: registry
-          .listRaw()
-          .map((r) => readFromStatus('MqttUser', r.statusJson))
-          .filter((u): u is string => u !== null),
-      }),
+    haSuggestions: haSuggestionsFrom({ ha, mqtt: config.mqtt, registry, hostIp: detectHostIp(), log }),
     webDir: webDir && existsSync(webDir) ? webDir : undefined,
     allowedIps: config.ingressOnly ? ['172.30.32.2', '127.0.0.1'] : undefined,
     logger: log,

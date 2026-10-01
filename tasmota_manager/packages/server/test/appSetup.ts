@@ -1,4 +1,4 @@
-import type { HaLocation } from '@tm/shared';
+import type { HaLocation, HaSuggestions } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/api/app';
 import { WsHub, wireLiveEvents } from '../src/api/hub';
@@ -21,6 +21,7 @@ export interface SetupOptions {
   fakePassword?: string;
   fake?: Partial<FakeTasmotaOptions>;
   haLocation?: HaLocation;
+  haSuggestions?: (registry: DeviceRegistry) => () => HaSuggestions;
 }
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -70,6 +71,7 @@ export async function setupApp(opts: SetupOptions = {}) {
     version: 'test',
     mqttStatus: () => 'disabled',
     haLocation: () => opts.haLocation ?? null,
+    haSuggestions: opts.haSuggestions?.(registry),
     allowedIps: opts.allowedIps,
     webDir: opts.webDir,
   });

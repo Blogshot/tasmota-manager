@@ -5,7 +5,8 @@ import type { Device, WsMessage } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanupApps, setupApp as setup } from '../../test/appSetup';
-import { waitFor } from '../../test/helpers';
+import { silentLogger, waitFor } from '../../test/helpers';
+import { haSuggestionsFrom } from '../haSuggestions';
 
 afterEach(cleanupApps);
 
@@ -106,6 +107,17 @@ describe('Einstellungen, Status und Scan', () => {
     const { app } = await setup();
     const body = (await app.inject('/api/status')).body;
     expect(JSON.parse(body)).toMatchObject({ haSuggestions: { ntpServer: 'pool.ntp.org', mqtt: null } });
+  });
+
+  it('gibt auch mit Supervisor-MQTT-Dienst weder Benutzer noch Passwort in /api/status aus', async () => {
+    const service = { url: 'mqtt://core-mosquitto:1883', username: 'svc-user', password: 'svc-secret', onHa: true };
+    const { app } = await setup({
+      haSuggestions: (registry) => haSuggestionsFrom({ ha: null, mqtt: service, registry, hostIp: '192.168.1.5', log: silentLogger }),
+    });
+    const body = (await app.inject('/api/status')).body;
+    expect(JSON.parse(body)).toMatchObject({ haSuggestions: { mqtt: { host: '192.168.1.5', port: 1883 } } });
+    expect(body).not.toContain('svc-user');
+    expect(body).not.toContain('svc-secret');
   });
 
   it('liefert den Standort aus Home Assistant für Koordinaten-Vorschläge', async () => {
