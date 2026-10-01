@@ -18,4 +18,20 @@ describe('tasmotaTimezone', () => {
   it('liefert null für unbekannte Zonen', () => {
     expect(tasmotaTimezone('Mars/Olympus', 2026)).toBeNull();
   });
+  it('liefert null für Zonen, deren Regeln sich jährlich verschieben (Africa/Casablanca)', () => {
+    expect(tasmotaTimezone('Africa/Casablanca', 2026)).toBeNull();
+  });
+  it('rechnet feste Versätze ohne Sommerzeit um (UTC, negativ)', () => {
+    expect(tasmotaTimezone('UTC', 2026)).toEqual({ timezone: '+00:00', timeStd: null, timeDst: null });
+    expect(tasmotaTimezone('America/Sao_Paulo', 2026)).toEqual({ timezone: '-03:00', timeStd: null, timeDst: null });
+  });
+  it('unterstützt Sommerzeit mit halbstündigem Versatz (Australia/Lord_Howe)', () => {
+    const result = tasmotaTimezone('Australia/Lord_Howe', 2026);
+    expect(result?.timezone).toBe('99');
+    expect(result?.timeStd).not.toBeNull();
+    expect(result?.timeDst).not.toBeNull();
+  });
+  it('merkt sich das Ergebnis je Zone und Jahr', () => {
+    expect(tasmotaTimezone('Europe/Paris', 2026)).toBe(tasmotaTimezone('Europe/Paris', 2026));
+  });
 });

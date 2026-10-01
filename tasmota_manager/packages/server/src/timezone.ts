@@ -1,14 +1,28 @@
+type Result = { timezone: string; timeStd: string | null; timeDst: string | null };
+
+/** Je Zone nur einmal angelegt: Intl.DateTimeFormat ist teuer. */
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatterFor(zone: string): Intl.DateTimeFormat {
+  let formatter = formatters.get(zone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+    });
+    formatters.set(zone, formatter);
+  }
+  return formatter;
+}
+
 /** UTC-Versatz einer Zone in Minuten zum Zeitpunkt `at`. */
 function offsetMinutes(zone: string, at: number): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: zone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-  }).formatToParts(new Date(at));
+  const parts = formatterFor(zone).formatToParts(new Date(at));
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
   const local = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));
   return Math.round((local - Math.floor(at / 60_000) * 60_000) / 60_000);
@@ -54,23 +68,38 @@ function rule(t: Transition, hemisphere: number): string {
   return [hemisphere, week, month, local.getUTCDay() + 1, local.getUTCHours(), t.after].join(',');
 }
 
-/** IANA-Zone → Tasmota: `Timezone 99` mit TimeStd/TimeDst, ohne Sommerzeit ein fester Versatz; null, wenn nicht abbildbar. */
-export function tasmotaTimezone(
-  zone: string,
-  year = new Date().getUTCFullYear(),
-): { timezone: string; timeStd: string | null; timeDst: string | null } | null {
-  let found: Transition[];
-  try {
-    found = transitions(zone, year);
-  } catch {
-    return null;
-  }
+function compute(zone: string, year: number): Result | null {
+  const found = transitions(zone, year);
   if (found.length === 0) return { timezone: formatOffset(offsetMinutes(zone, Date.UTC(year, 0, 1))), timeStd: null, timeDst: null };
   if (found.length !== 2) return null;
   const toDst = found.find((t) => t.after > t.before);
   const toStd = found.find((t) => t.after < t.before);
   if (!toDst || !toStd) return null;
-  // Nordhalbkugel: Sommerzeit beginnt im Jahr vor ihrem Ende.
+  // Nordhalbkugel: Die Sommerzeit beginnt im Kalenderjahr früher, als sie endet.
   const hemisphere = toDst.at < toStd.at ? 0 : 1;
   return { timezone: '99', timeStd: rule(toStd, hemisphere), timeDst: rule(toDst, hemisphere) };
+}
+
+const cache = new Map<string, Result | null>();
+
+/**
+ * IANA-Zone → Tasmota: `Timezone 99` mit TimeStd/TimeDst, ohne Sommerzeit ein fester Versatz.
+ * null, wenn nicht abbildbar (unbekannte Zone oder Regeln, die sich von Jahr zu Jahr ändern).
+ */
+export function tasmotaTimezone(zone: string, year = new Date().getUTCFullYear()): Result | null {
+  const key = `${zone}|${year}`;
+  if (cache.has(key)) return cache.get(key) ?? null;
+  let result: Result | null;
+  try {
+    result = compute(zone, year);
+    // Tasmota wiederholt die Regel jedes Jahr; verschieben sich die Termine, ist sie nicht abbildbar.
+    if (result?.timeStd !== null && result !== null) {
+      const next = compute(zone, year + 1);
+      if (next?.timeStd !== result.timeStd || next?.timeDst !== result.timeDst) result = null;
+    }
+  } catch {
+    result = null;
+  }
+  cache.set(key, result);
+  return result;
 }
