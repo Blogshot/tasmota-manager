@@ -31,6 +31,7 @@ export function SettingsTab({ device, status }: { device: Device; status: unknow
       <SettingsFields
         idPrefix={`detail-${device.id}`}
         defs={DEFS}
+        devices={[device]}
         values={values}
         errors={errors}
         current={current}

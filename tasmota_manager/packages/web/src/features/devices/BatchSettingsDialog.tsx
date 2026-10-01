@@ -46,6 +46,7 @@ export function BatchSettingsDialog({ devices, open, onOpenChange }: Props) {
           <SettingsFields
             idPrefix="batch"
             defs={defs}
+            devices={devices}
             values={values}
             errors={errors}
             onChange={(key, value) => setValues((v) => ({ ...v, [key]: value }))}
