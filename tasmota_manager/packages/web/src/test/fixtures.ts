@@ -25,6 +25,7 @@ export function makeDevice(partial: Partial<Device> = {}): Device {
     power: [],
     ha: null,
     nameSuggestion: null,
+    suggestionDismissed: false,
     pendingCount: 0,
     pendingName: null,
     ...partial,

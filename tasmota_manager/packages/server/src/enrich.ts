@@ -24,7 +24,8 @@ export class DeviceEnricher {
     const pendingNames = this.store.pendingNames();
     const links = new Map(devices.map((d) => [d.id, this.ha?.link(d.id) ?? null]));
     const suggestions = suggestNames(
-      devices.map((d) => ({
+      // Abgelehnte Vorschläge fallen ganz heraus, damit sie auch keinen Namen für andere Geräte belegen.
+      devices.filter((d) => !d.suggestionDismissed).map((d) => ({
         id: d.id,
         name: pendingNames.get(d.id) ?? d.name,
         hostname: d.hostname,

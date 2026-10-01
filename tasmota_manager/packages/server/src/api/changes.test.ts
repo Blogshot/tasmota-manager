@@ -64,6 +64,17 @@ describe('Änderungs-API', () => {
     expect(device).toMatchObject({ nameSuggestion: null, pendingCount: 2, pendingName: 'Climate' });
   });
 
+  it('übergeht abgelehnte Namensvorschläge, auch beim Übernehmen per Batch', async () => {
+    const { app } = await setupApp({ fake: { name: 'Tasmota', sensors: { AM2301: { Temperature: 21, Humidity: 40 } } } });
+    await addFake(app);
+    const dismissed = await app.inject({ method: 'PATCH', url: `/api/devices/${MAC}`, payload: { suggestionDismissed: true } });
+    expect(dismissed.json()).toMatchObject({ nameSuggestion: null, suggestionDismissed: true });
+    const res = await app.inject({ method: 'POST', url: '/api/changes/suggestions', payload: { deviceIds: [MAC] } });
+    expect(res.json()).toEqual({ staged: 0, skipped: 0 });
+    const restored = await app.inject({ method: 'PATCH', url: `/api/devices/${MAC}`, payload: { suggestionDismissed: false } });
+    expect(restored.json()).toMatchObject({ nameSuggestion: 'Climate', suggestionDismissed: false });
+  });
+
   it('startet den Batch, liefert den Job und leert den Puffer', async () => {
     const { app, fake, runner } = await setupApp();
     await addFake(app);

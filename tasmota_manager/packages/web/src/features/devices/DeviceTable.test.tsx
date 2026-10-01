@@ -6,7 +6,7 @@ import { makeDevice } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
 import { DeviceTable } from './DeviceTable';
 
-vi.mock('@/lib/api', () => ({ api: { stageSuggestions: vi.fn() }, ApiError: class extends Error {} }));
+vi.mock('@/lib/api', () => ({ api: { stageSuggestions: vi.fn(), updateDevice: vi.fn() }, ApiError: class extends Error {} }));
 
 const devices = [
   makeDevice({
@@ -65,8 +65,19 @@ describe('DeviceTable', () => {
     vi.mocked(api.stageSuggestions).mockResolvedValue({ staged: 2, skipped: 0 });
     const user = userEvent.setup();
     const onOpen = renderTable();
-    await user.click(screen.getByRole('button', { name: /Klima Bad/ }));
+    await user.click(screen.getByRole('button', { name: 'Klima Bad' }));
     await waitFor(() => expect(api.stageSuggestions).toHaveBeenCalledWith(['A']));
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('lehnt einen Namensvorschlag per X ab, ohne ihn vorzumerken', async () => {
+    vi.mocked(api.updateDevice).mockResolvedValue(makeDevice({ id: 'A', suggestionDismissed: true }));
+    vi.mocked(api.stageSuggestions).mockClear();
+    const user = userEvent.setup();
+    const onOpen = renderTable();
+    await user.click(screen.getByRole('button', { name: 'Vorschlag „Klima Bad“ ablehnen' }));
+    await waitFor(() => expect(api.updateDevice).toHaveBeenCalledWith('A', { suggestionDismissed: true }));
+    expect(api.stageSuggestions).not.toHaveBeenCalled();
     expect(onOpen).not.toHaveBeenCalled();
   });
 

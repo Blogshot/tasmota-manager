@@ -54,6 +54,7 @@ export const DeviceSchema = z.object({
   power: z.array(z.boolean()),
   ha: HaLinkSchema.nullable(),
   nameSuggestion: z.string().nullable(),
+  suggestionDismissed: z.boolean(),
   pendingCount: z.number(),
   pendingName: z.string().nullable(),
 });
@@ -66,6 +67,8 @@ export type AddDeviceRequest = z.infer<typeof AddDeviceRequestSchema>;
 export const DeviceUpdateRequestSchema = z.object({
   password: z.string().max(64).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  /** Namensvorschlag für dieses Gerät ausblenden (nur in der App, nicht auf dem Gerät). */
+  suggestionDismissed: z.boolean().optional(),
 });
 export type DeviceUpdateRequest = z.infer<typeof DeviceUpdateRequestSchema>;
 

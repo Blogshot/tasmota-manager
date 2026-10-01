@@ -39,6 +39,7 @@ export function registerDeviceRoutes(app: FastifyInstance, { registry, gateway, 
     let device = registry.get(req.params.id);
     if (!device) return reply.code(404).send(notFound());
     if (body.tags) device = registry.setTags(device.id, body.tags);
+    if (body.suggestionDismissed !== undefined) device = registry.setSuggestionDismissed(device.id, body.suggestionDismissed);
     if (body.password !== undefined) {
       device = registry.setPasswordOverride(device.id, body.password || null);
       if (device.authRequired && device.ip) {

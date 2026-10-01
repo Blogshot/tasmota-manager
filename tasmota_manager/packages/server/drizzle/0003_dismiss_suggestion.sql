@@ -1,0 +1,1 @@
+ALTER TABLE `devices` ADD `suggestion_dismissed` integer DEFAULT false NOT NULL;

@@ -24,6 +24,7 @@ export const devices = sqliteTable('devices', {
   statusJson: text('status_json', { mode: 'json' }).$type<unknown>(),
   sensorsJson: text('sensors_json', { mode: 'json' }).$type<unknown>(),
   passwordOverride: text('password_override'),
+  suggestionDismissed: integer('suggestion_dismissed', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull(),
 });
 

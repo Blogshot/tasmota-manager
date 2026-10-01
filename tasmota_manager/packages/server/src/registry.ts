@@ -182,6 +182,12 @@ export class DeviceRegistry extends EventEmitter<RegistryEvents> {
     return failures;
   }
 
+  setSuggestionDismissed(id: string, dismissed: boolean): Device {
+    this.requireRow(id);
+    this.db.update(devices).set({ suggestionDismissed: dismissed }).where(eq(devices.id, id)).run();
+    return this.emitUpdated(id);
+  }
+
   setPasswordOverride(id: string, password: string | null): Device {
     this.requireRow(id);
     this.db
@@ -282,6 +288,7 @@ function toDevice(row: DeviceRow, tagNames: string[]): Device {
     power: row.power ?? [],
     ha: null,
     nameSuggestion: null,
+    suggestionDismissed: row.suggestionDismissed,
     pendingCount: 0,
     pendingName: null,
   };

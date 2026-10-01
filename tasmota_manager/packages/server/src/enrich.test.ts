@@ -25,4 +25,21 @@ describe('DeviceEnricher', () => {
     expect(enricher.one('AABBCC000001')?.nameSuggestion).toBe('Klima Bad');
     expect(enricher.one('GIBTSNICHT')).toBeNull();
   });
+
+  it('zeigt abgelehnte Namensvorschläge nicht mehr an und vergibt ihren Namen nicht', () => {
+    const db = testDb();
+    const registry = new DeviceRegistry(db);
+    const store = new PendingStore(db, registry);
+    for (const mac of ['AABBCC000001', 'AABBCC000002']) {
+      registry.upsert({ mac, name: 'Tasmota' }, { statusJson: { StatusSTS: { POWER: 'ON' } } });
+    }
+    const enricher = new DeviceEnricher(registry, store, null, () => 'de');
+    expect(registry.setSuggestionDismissed('AABBCC000001', true).suggestionDismissed).toBe(true);
+    const [first, second] = enricher.all().sort((a, b) => a.id.localeCompare(b.id));
+    expect(first?.nameSuggestion).toBeNull();
+    // Ohne den abgelehnten Vorschlag braucht das zweite Gerät keine Nummer.
+    expect(second?.nameSuggestion).toBe('Schalter');
+    registry.setSuggestionDismissed('AABBCC000001', false);
+    expect(enricher.one('AABBCC000001')?.nameSuggestion).toBe('Schalter');
+  });
 });
