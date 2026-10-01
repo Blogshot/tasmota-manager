@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6
+
+- Updates are now delivered as ready-made images for amd64 and aarch64. Home Assistant only downloads the image instead of building the app on your device, so updates are much faster and show download progress.
+
 ## 0.3.5
 
 - Fixed: the map picker showed "Access blocked" instead of the map. OpenStreetMap rejects tile requests without a referrer, and Home Assistant suppresses it; the map now sends the origin of your Home Assistant address.

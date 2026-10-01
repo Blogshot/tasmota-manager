@@ -1,10 +1,12 @@
 name: Tasmota Manager
-version: "0.3.5"
+version: "0.3.6"
 slug: tasmota_manager
 description: Verwaltung und Batch-Konfiguration aller Tasmota-Geräte im Netzwerk
 arch:
   - amd64
   - aarch64
+# Fertige Images aus der GitHub-Registry; HA baut die App nicht mehr selbst.
+image: ghcr.io/blogshot/{arch}-tasmota-manager
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:lightning-bolt-circle
