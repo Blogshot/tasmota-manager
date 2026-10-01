@@ -1,8 +1,9 @@
 import type { Device, JobView, PendingDevice, WsMessage } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanupApps, setupApp } from '../../test/appSetup';
 import { waitFor } from '../../test/helpers';
+import { DeviceGateway } from '../gateway';
 
 afterEach(cleanupApps);
 
@@ -180,5 +181,29 @@ describe('Änderungs-API', () => {
     const preview = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC, 'GIBTSNICHT'] } });
     expect(preview.statusCode).toBe(200);
     expect(preview.json()).toEqual([expect.objectContaining({ deviceId: MAC, slot: null, reason: 'unreachable' })]);
+  });
+
+  it('überspringt Rule-Slots, die bereits im Änderungspuffer vorgemerkt sind', async () => {
+    const { app, store } = await setupApp({ fake: { sensors: { AM2301: { Temperature: 21 } } } });
+    await addFake(app);
+    store.stage({ deviceIds: [MAC], settings: { Rule1: 'ON System#Boot DO Power 1 ENDON' }, source: 'form' });
+    const second = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC] } });
+    expect(second.json()).toEqual([expect.objectContaining({ slot: 2, reason: 'ok' })]);
+    store.stage({ deviceIds: [MAC], settings: { Rule2: 'ON System#Boot DO Power 1 ENDON', Rule3: 'ON System#Boot DO Power 1 ENDON' }, source: 'form' });
+    const full = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC] } });
+    expect(full.json()).toEqual([expect.objectContaining({ slot: null, reason: 'noSlot' })]);
+    expect(store.forDevice(MAC).find((r) => r.key === 'Rule1')?.value).toBe('ON System#Boot DO Power 1 ENDON');
+  });
+
+  it('meldet einen Lesefehler pro Gerät als unreachable statt alle abzubrechen', async () => {
+    const { app } = await setupApp({ fake: { sensors: { AM2301: { Temperature: 21 } } } });
+    await addFake(app);
+    const spy = vi.spyOn(DeviceGateway.prototype, 'send').mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const preview = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC] } });
+    spy.mockRestore();
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json()).toEqual([expect.objectContaining({ slot: null, reason: 'unreachable' })]);
   });
 });

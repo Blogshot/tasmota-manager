@@ -2,7 +2,6 @@ import { type FastRulePreview, FastRuleRequestSchema, type StageResult } from '@
 import type { FastifyInstance } from 'fastify';
 import { parseRuleState } from '../changes/catalog';
 import { buildFastRule } from '../fastRule';
-import { TransportError } from '../transport/errors';
 import type { AppDeps } from './app';
 import { parseBody } from './validate';
 
@@ -13,15 +12,16 @@ async function preview(deps: AppDeps, deviceId: string): Promise<FastRulePreview
   const base = { deviceId, deviceName: device.name, rule: built.rule, included: built.included, omitted: built.omitted };
   if (!built.rule) return { ...base, slot: null, reason: 'noSensors' };
   try {
+    const staged = new Set(deps.store.forDevice(deviceId).map((r) => r.key));
     for (const index of [1, 2, 3]) {
-      // Nur lesen; ein belegter Slot wird nie überschrieben.
+      // Nur lesen; ein belegter oder bereits vorgemerkter Slot wird nie überschrieben.
       const state = parseRuleState(index, (await deps.gateway.send(deviceId, `Rule${index}`)).response);
-      if (state.text.trim() === '') return { ...base, slot: index, reason: 'ok' };
+      if (state.text.trim() === '' && !staged.has(`Rule${index}`)) return { ...base, slot: index, reason: 'ok' };
     }
     return { ...base, slot: null, reason: 'noSlot' };
-  } catch (err) {
-    if (err instanceof TransportError) return { ...base, slot: null, reason: 'unreachable' };
-    throw err;
+  } catch {
+    // Ein Lesefehler betrifft nur dieses Gerät.
+    return { ...base, slot: null, reason: 'unreachable' };
   }
 }
 
