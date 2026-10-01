@@ -157,7 +157,6 @@ export const fr: Record<MessageKey, string> = {
   'pending.discard': 'Annuler',
   'pending.command': 'Commande',
   'pending.unknown': 'inconnu',
-  'pending.loadCurrent': 'Lire la valeur actuelle',
   'pending.running': 'Lot en cours …',
   'pending.started': 'Lot lancé',
   'job.status.pending': 'En attente',

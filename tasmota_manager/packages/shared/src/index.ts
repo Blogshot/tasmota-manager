@@ -72,6 +72,11 @@ export const DeviceUpdateRequestSchema = z.object({
 });
 export type DeviceUpdateRequest = z.infer<typeof DeviceUpdateRequestSchema>;
 
+/** Live gelesener Wert einer Einstellung, in der Form, in der er im Puffer steht. */
+export interface SettingValue {
+  value: string | null;
+}
+
 export const CommandRequestSchema = z.object({ command: z.string().trim().min(1).max(512) });
 export type CommandResult =
   | { ok: true; channel: Channel; response: unknown }

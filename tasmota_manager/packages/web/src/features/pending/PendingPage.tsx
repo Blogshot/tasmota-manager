@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PendingChange, PendingDevice, RuleState, TimersState } from '@tm/shared';
-import { useState } from 'react';
+import { type PendingChange, type PendingDevice, settingDef } from '@tm/shared';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,6 @@ import { api } from '@/lib/api';
 import { errorText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 import { JobProgress } from './JobProgress';
-import { liveKind, liveValue } from './liveValue';
 
 function useInvalidate() {
   const qc = useQueryClient();
@@ -127,25 +125,22 @@ function PendingRow({ change, disabled }: { change: PendingChange; disabled: boo
   );
 }
 
+/** Alter Wert: aus dem gespeicherten Status, sonst automatisch live vom Gerät gelesen (nur Abfrage). */
 function BeforeValue({ change }: { change: PendingChange }) {
   const t = useT();
-  const [load, setLoad] = useState(false);
-  const kind = liveKind(change.key);
-  const query = useQuery<RuleState[] | TimersState>({
-    queryKey: [kind ?? 'none', change.deviceId],
-    queryFn: () => (kind === 'rules' ? api.rules(change.deviceId) : api.timers(change.deviceId)),
-    enabled: load && kind !== null,
+  const key = change.key ?? '';
+  const readable = change.before === null && !settingDef(key)?.writeOnly;
+  const query = useQuery({
+    queryKey: ['setting', change.deviceId, key],
+    queryFn: () => api.setting(change.deviceId, key),
+    enabled: readable && key !== '',
+    staleTime: 60_000,
+    retry: false,
   });
   const struck = 'font-mono text-muted-foreground line-through break-all';
-  if (change.before !== null) return <span className={struck}>{change.before === '' ? '""' : change.before}</span>;
-  if (!kind) return <span className="text-muted-foreground">{t('pending.unknown')}</span>;
-  if (!load) {
-    return (
-      <Button variant="link" size="sm" className="h-auto p-0" onClick={() => setLoad(true)}>
-        {t('pending.loadCurrent')}
-      </Button>
-    );
-  }
-  if (!query.data) return <span className="text-muted-foreground">…</span>;
-  return <span className={struck}>{liveValue(change.key ?? '', query.data) ?? '—'}</span>;
+  const show = (value: string) => <span className={struck}>{value === '' ? '""' : value}</span>;
+  if (change.before !== null) return show(change.before);
+  if (readable && query.isPending) return <span className="text-muted-foreground">…</span>;
+  if (query.data && query.data.value !== null) return show(query.data.value);
+  return <span className="text-muted-foreground">{t('pending.unknown')}</span>;
 }

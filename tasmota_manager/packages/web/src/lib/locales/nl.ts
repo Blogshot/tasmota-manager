@@ -157,7 +157,6 @@ export const nl: Record<MessageKey, string> = {
   'pending.discard': 'Verwerpen',
   'pending.command': 'Commando',
   'pending.unknown': 'onbekend',
-  'pending.loadCurrent': 'Huidige waarde laden',
   'pending.running': 'Batch loopt …',
   'pending.started': 'Batch gestart',
   'job.status.pending': 'Wacht',

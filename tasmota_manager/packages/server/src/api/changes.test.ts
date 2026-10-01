@@ -64,6 +64,19 @@ describe('Änderungs-API', () => {
     expect(device).toMatchObject({ nameSuggestion: null, pendingCount: 2, pendingName: 'Climate' });
   });
 
+  it('liest den aktuellen Wert einer Einstellung live vom Gerät', async () => {
+    const { app } = await setupApp();
+    await addFake(app);
+    const read = (key: string) => app.inject(`/api/devices/${MAC}/settings/${key}`);
+    expect((await read('TelePeriod')).json()).toEqual({ value: '300' });
+    expect((await read('Timezone')).json()).toEqual({ value: '99' });
+    expect((await read('Rule1')).json()).toMatchObject({ value: expect.any(String) });
+    // Passwörter sind nicht lesbar, unbekannte Schlüssel gibt es nicht.
+    expect((await read('MqttPassword')).statusCode).toBe(400);
+    expect((await read('Bogus')).statusCode).toBe(404);
+    expect((await app.inject('/api/devices/GIBTSNICHT/settings/TelePeriod')).statusCode).toBe(404);
+  });
+
   it('übergeht abgelehnte Namensvorschläge, auch beim Übernehmen per Batch', async () => {
     const { app } = await setupApp({ fake: { name: 'Tasmota', sensors: { AM2301: { Temperature: 21, Humidity: 40 } } } });
     await addFake(app);

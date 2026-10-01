@@ -14,8 +14,7 @@ vi.mock('@/lib/api', () => ({
     discardChange: vi.fn(),
     discardDevice: vi.fn(),
     discardAll: vi.fn(),
-    rules: vi.fn(),
-    timers: vi.fn(),
+    setting: vi.fn(),
   },
   ApiError: class extends Error {},
 }));
@@ -63,11 +62,8 @@ describe('PendingPage', () => {
     vi.mocked(api.currentJob).mockResolvedValue({ job: null });
     vi.mocked(api.apply).mockResolvedValue({ ...JOB, status: 'running' });
     vi.mocked(api.discardChange).mockResolvedValue(undefined);
-    vi.mocked(api.rules).mockResolvedValue([
-      { index: 1, enabled: false, text: 'alt', length: 3, free: 508 },
-      { index: 2, enabled: false, text: '', length: 0, free: 511 },
-      { index: 3, enabled: false, text: '', length: 0, free: 511 },
-    ]);
+    vi.mocked(api.setting).mockReset();
+    vi.mocked(api.setting).mockResolvedValue({ value: 'alt' });
   });
 
   it('zeigt Änderungen gruppiert mit Vorher/Nachher und Fehlern', async () => {
@@ -80,13 +76,14 @@ describe('PendingPage', () => {
     expect(within(screen.getByTestId('pending-B')).getByText('••••')).toBeInTheDocument();
   });
 
-  it('lädt den aktuellen Wert einer Rule bei Bedarf', async () => {
-    const user = userEvent.setup();
+  it('liest unbekannte alte Werte automatisch vom Gerät', async () => {
     renderWithProviders(<PendingPage />);
     const keller = await screen.findByTestId('pending-A');
-    await user.click(within(keller).getByRole('button', { name: 'Aktuellen Wert laden' }));
     expect(await within(keller).findByText('alt')).toBeInTheDocument();
-    expect(api.rules).toHaveBeenCalledWith('A');
+    expect(api.setting).toHaveBeenCalledWith('A', 'Rule1');
+    // Bekannte alte Werte und Passwörter werden nicht gelesen.
+    expect(api.setting).not.toHaveBeenCalledWith('A', 'PowerOnState');
+    expect(api.setting).not.toHaveBeenCalledWith('B', 'MqttPassword');
   });
 
   it('startet den Batch für alle Geräte', async () => {

@@ -1,18 +1,4 @@
-import type {
-  CommandResult,
-  Device,
-  DeviceDetail,
-  DeviceUpdateRequest,
-  JobView,
-  PendingDevice,
-  RuleState,
-  Settings,
-  SettingsUpdateRequest,
-  StageRequest,
-  StageResult,
-  StatusResponse,
-  TimersState,
-} from '@tm/shared';
+import type { CommandResult, Device, DeviceDetail, DeviceUpdateRequest, JobView, PendingDevice, RuleState, Settings, SettingsUpdateRequest, SettingValue, StageRequest, StageResult, StatusResponse, TimersState } from '@tm/shared';
 
 export class ApiError extends Error {
   constructor(
@@ -62,4 +48,5 @@ export const api = {
   currentJob: () => request<{ job: JobView | null }>('jobs/current'),
   rules: (id: string) => request<RuleState[]>(`${deviceUrl(id)}/rules`),
   timers: (id: string) => request<TimersState>(`${deviceUrl(id)}/timers`),
+  setting: (id: string, key: string) => request<SettingValue>(`${deviceUrl(id)}/settings/${encodeURIComponent(key)}`),
 };

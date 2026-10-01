@@ -5,10 +5,12 @@ import {
   type DeviceDetail,
   DeviceUpdateRequestSchema,
   type RuleState,
+  type SettingValue,
   type TimersState,
+  settingDef,
 } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
-import { parseRuleState, parseTimer, parseTimersEnabled } from '../changes/catalog';
+import { extractValue, parseRuleState, parseTimer, parseTimersEnabled, readCommand } from '../changes/catalog';
 import { TransportError } from '../transport/errors';
 import type { AppDeps } from './app';
 import { notFound, parseBody } from './validate';
@@ -88,6 +90,21 @@ export function registerDeviceRoutes(app: FastifyInstance, { registry, gateway, 
       const timers: TimersState['timers'] = [];
       for (let index = 1; index <= 16; index++) timers.push(parseTimer(index, (await gateway.send(id, `Timer${index}`)).response));
       return { enabled, timers } satisfies TimersState;
+    } catch (err) {
+      if (err instanceof TransportError) return reply.code(502).send({ code: err.code, message: err.message });
+      throw err;
+    }
+  });
+
+  /** Liest den aktuellen Wert einer Einstellung live vom Gerät (nur Abfrage, schreibt nichts). */
+  app.get<{ Params: { id: string; key: string } }>('/api/devices/:id/settings/:key', async (req, reply) => {
+    const { id, key } = req.params;
+    const def = settingDef(key);
+    if (!registry.get(id) || !def) return reply.code(404).send(notFound(def ? 'Device' : 'Setting'));
+    if (def.writeOnly) return reply.code(400).send({ code: 'validation', message: `${key} cannot be read` });
+    try {
+      const { response } = await gateway.send(id, readCommand(def));
+      return { value: extractValue(def, response) } satisfies SettingValue;
     } catch (err) {
       if (err instanceof TransportError) return reply.code(502).send({ code: err.code, message: err.message });
       throw err;
