@@ -60,7 +60,11 @@ Der Server leitet pro Gerät Fähigkeiten aus dem gespeicherten Status 0 und Sta
 
 `PowerDelta` wird als `PowerDelta1` geschrieben und gelesen (Tasmota indiziert es pro Kanal); der Katalog-Key bleibt `PowerDelta`.
 
-**Hinweis bei TelePeriod:** Das Feld `TelePeriod` bekommt den Hinweis „Für schnelle Leistungswerte besser PowerDelta verwenden. Kurze Intervalle füllen die Datenbank von Home Assistant.“ Er erscheint nur, wenn mindestens ein betroffenes Gerät (in der Auswahl bzw. das Gerät selbst) die Fähigkeit `energy` hat.
+**Hinweise bei TelePeriod** (Details in Abschnitt 5a):
+
+- Bei einem Wert unter 60 Sekunden erscheint immer die Warnung „Kurze Intervalle füllen die Datenbank von Home Assistant.“
+- Hat mindestens ein betroffenes Gerät die Fähigkeit `energy`, steht zusätzlich da: „Für schnelle Leistungswerte besser PowerDelta verwenden.“
+- Bei einem Wert unter 10 Sekunden bietet die App eine Regel für sofortige Updates an (5a).
 
 ### 3.3 Werteformate
 
@@ -120,6 +124,35 @@ Die Erwartungswerte für die Tests stammen aus der Tasmota-Doku und eigenen Bere
 - Der Enricher schlägt diesen Namen vor, wenn er gesetzt ist und vom Tasmota-Namen abweicht. Er hat Vorrang vor dem Typwort-Vorschlag und gilt auch für Geräte mit nicht-generischem Namen.
 - Ablehnen per X und „Namensvorschläge übernehmen“ funktionieren wie bisher.
 
+## 5a. Sofortige Updates per Regel (TelePeriod unter 10 s)
+
+Tasmota erlaubt als kürzestes Intervall 10 Sekunden. Wer schneller Werte braucht, kann eine Regel nutzen, die bei jeder Änderung eines Sensorwerts sofort Telemetrie sendet.
+
+**Ablauf:**
+
+1. Der Nutzer trägt bei TelePeriod einen Wert unter 10 ein.
+2. Statt eines Fehlers zeigt das Feld: „Tasmota sendet höchstens alle 10 s. Stattdessen eine Regel anlegen, die bei jeder Sensoränderung sofort sendet?“ mit dem Button „Regel vorschlagen“.
+3. Ein Klick zeigt pro Gerät eine Vorschau der erzeugten Regel und den Rule-Slot, in den sie käme. Der Nutzer bestätigt mit „Regel vormerken“; TelePeriod wird dabei auf 10 gesetzt (Rückfallintervall).
+4. Vorgemerkt werden `Rule<n>` mit dem Text und `Rule<n>Enabled 1`; geschrieben wird wie immer erst im Batch-Lauf.
+
+**Erzeugung (Server, `fastRule.ts`):**
+
+- Grundlage sind die Sensorwerte aus dem gespeicherten Status 10 des Geräts, z. B. `AM2301.Temperature`, `AM2301.Humidity`, `DS18B20.Temperature`.
+- Pro Wert eine Zeile nach dem Muster `ON <Sensor>#<Wert>!=%var<k>% DO Backlog Var<k> %value%; TelePeriod 1 ENDON`. `Var<k>` merkt sich den zuletzt gemeldeten Wert, `TelePeriod 1` löst sofort eine Telemetrie aus, ohne das Intervall zu ändern.
+- Ausgelassen werden der Block `ENERGY` (dafür gibt es `PowerDelta`, das die App stattdessen vorschlägt), interne Chip-Temperaturen (`ESP32*`) sowie Zeit- und Zählerfelder.
+- Grenzen: höchstens 16 Werte (`Var1`–`Var16`) und 511 Zeichen. Passt nicht alles hinein, nimmt die Vorschau die ersten Werte und sagt, welche fehlen.
+- **Slot-Wahl:** der erste leere Rule-Slot (live gelesen). Sind alle drei belegt, bietet die App keinen Slot an und erklärt, warum; überschrieben wird nie automatisch.
+- Geräte ohne passende Sensoren (oder nur mit `ENERGY`) bekommen keine Regel; die Vorschau nennt sie.
+
+**Batch:** Die Regel wird pro Gerät aus dessen eigenen Sensoren erzeugt; die Vorschau listet alle ausgewählten Geräte mit ihrer Regel.
+
+**Unsicher (aus der Doku, nicht getestet):**
+
+- ob Sensor-Trigger ohne `Tele-`-Präfix bei jeder Messung auslösen oder nur im Telemetrie-Takt;
+- ob `TelePeriod 1` sofort sendet, ohne das Intervall zu verändern.
+
+Beides prüft der Smoke-Test (Abschnitt 8) an einem echten Gerät, bevor die Funktion als fertig gilt.
+
 ## 6. Oberfläche
 
 - Neue Gruppen im Formular: Energiemessung, Licht, Relais, Klima; `TimeStd`/`TimeDst` in der Gruppe „Zeit“.
@@ -138,8 +171,9 @@ Die Erwartungswerte für die Tests stammen aus der Tasmota-Doku und eigenen Bere
 - Unit-Tests: Fähigkeiten-Erkennung, Formate `DimmerRange` und `TimeStd`/`TimeDst` (lesen, vergleichen), Zeitzonen-Umrechnung, häufigster MQTT-Benutzer, HA-Namensvorschlag.
 - Store/API: Überspringen nach Fähigkeiten, `incompatible` in der Antwort, `batch: false` bei mehreren Geräten.
 - Runner mit Fake-Gerät: Schreiben und Verify für `PowerDelta`, `DimmerRange`, `TimeStd`.
-- Web: gefilterte Gruppen, „gilt für X von Y“, TelePeriod-Hinweis nur bei Energiemessung, HA-Vorschläge füllen die Felder.
-- **Smoke-Test an echten Geräten (Nutzer):** eine Steckdose (`PowerDelta`), eine Lampe (`DimmerRange`, `Fade`), ein Gerät mit Zeitzone aus HA. Prüft die Antwortformate aus 3.3.
+- Unit-Tests für die Regel-Erzeugung: Muster, ausgelassene Felder, 16-Werte- und 511-Zeichen-Grenze, Slot-Wahl.
+- Web: gefilterte Gruppen, „gilt für X von Y“, TelePeriod-Warnung unter 60 s, PowerDelta-Hinweis nur bei Energiemessung, Regel-Angebot unter 10 s mit Vorschau, HA-Vorschläge füllen die Felder.
+- **Smoke-Test an echten Geräten (Nutzer):** eine Steckdose (`PowerDelta`), eine Lampe (`DimmerRange`, `Fade`), ein Gerät mit Zeitzone aus HA, ein Gerät mit Klimasensor und Sofort-Regel. Prüft die Antwortformate aus 3.3 und das Verhalten aus 5a.
 
 ## 9. Nicht Teil dieses Vorhabens
 
