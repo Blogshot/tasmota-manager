@@ -36,7 +36,8 @@ Der Server leitet pro Gerät Fähigkeiten aus dem gespeicherten Status 0 und Sta
 ### 3.1 Neue Felder in `SettingDef`
 
 - `appliesTo: Capability[]` – leer heißt: gilt für alle Geräte.
-- `batch: boolean` – gibt es schon; `false` heißt: nur in der Detailansicht.
+- `batch: boolean` – gibt es schon; `false` heißt: nicht im Batch-Formular „Einstellungen …“ (Rules und Timer haben eigene Batch-Dialoge).
+- `perDevice?: true` – Wert ist gerätespezifisch (Kalibrierung); der Server lehnt ihn für mehr als ein Gerät ab.
 - `hint?: true` – das Feld hat einen erklärenden Text unter dem Eingabefeld (Wörterbuchschlüssel `hint.<Key>`).
 
 ### 3.2 Neue Einstellungen
@@ -53,8 +54,8 @@ Der Server leitet pro Gerät Fähigkeiten aus dem gespeicherten Status 0 und Sta
 | Relais | `SetOption0` | bool | relay | ja | „Schaltzustand im Flash speichern“ |
 | | `Interlock` | bool | multiRelay | ja | Warnung: „Nur ein Relais gleichzeitig, z. B. für Rollläden“ |
 | Klima | `TempRes`, `HumRes` | int 0–3 | climate | ja | |
-| | `TempOffset` | Dezimalzahl −12,6 bis 12,6 | climate | nein | |
-| | `HumOffset` | Dezimalzahl −10 bis 10 | climate | nein | |
+| | `TempOffset` | Dezimalzahl −12,6 bis 12,6 | climate | nein, `perDevice` | |
+| | `HumOffset` | Dezimalzahl −10 bis 10 | climate | nein, `perDevice` | |
 | | `SetOption8` | bool | climate | ja | „Temperatur in °F“ |
 | Zeit | `TimeStd`, `TimeDst` | Regel (s. 3.3) | alle | ja | |
 
@@ -75,7 +76,8 @@ Der Server leitet pro Gerät Fähigkeiten aus dem gespeicherten Status 0 und Sta
 ## 4. Batch: unpassende Geräte überspringen
 
 - **Vormerken (Server):** `PendingStore.stage` merkt eine Einstellung nur bei Geräten vor, deren Fähigkeiten zu `appliesTo` passen. Das Ergebnis bekommt ein neues Feld `incompatible` (Anzahl übersprungener Geräte) neben `staged` und `skipped`.
-- **Nicht im Batch:** Einstellungen mit `batch: false` lehnt der Server bei mehr als einem Gerät mit `validation` ab.
+- **Nur pro Gerät:** Einstellungen mit `perDevice` lehnt der Server bei mehr als einem Gerät mit `validation` ab.
+- **Zählweise:** `incompatible` zählt Geräte, bei denen mindestens eine Einstellung übersprungen wurde.
 - **Dialog „Einstellungen …“:**
   - Gruppen erscheinen nur, wenn mindestens ein ausgewähltes Gerät passt.
   - Jedes Feld mit `appliesTo` zeigt „gilt für X von Y“; bei X = 0 ist es ausgegraut.
@@ -164,7 +166,7 @@ Tasmota erlaubt als kürzestes Intervall 10 Sekunden. Wer schneller Werte brauch
 ## 8. Tests
 
 - Unit-Tests: Fähigkeiten-Erkennung, Formate `DimmerRange` und `TimeStd`/`TimeDst` (lesen, vergleichen), Zeitzonen-Umrechnung, häufigster MQTT-Benutzer, HA-Namensvorschlag.
-- Store/API: Überspringen nach Fähigkeiten, `incompatible` in der Antwort, `batch: false` bei mehreren Geräten.
+- Store/API: Überspringen nach Fähigkeiten, `incompatible` in der Antwort, `perDevice` bei mehreren Geräten.
 - Runner mit Fake-Gerät: Schreiben und Verify für `PowerDelta`, `DimmerRange`, `TimeStd`.
 - Unit-Tests für die Regel-Erzeugung: Muster, ein Auslöser pro Sensorblock, ausgelassene Blöcke, 511-Zeichen-Grenze, Slot-Wahl.
 - Web: gefilterte Gruppen, „gilt für X von Y“, TelePeriod-Warnung unter 60 s, PowerDelta-Hinweis nur bei Energiemessung, Regel-Angebot unter 10 s mit Vorschau, HA-Vorschläge füllen die Felder.
