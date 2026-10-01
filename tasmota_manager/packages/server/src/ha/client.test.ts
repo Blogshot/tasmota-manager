@@ -6,7 +6,7 @@ import { HaClient, macOfHaDevice } from './client';
 const data = (): FakeHaData => ({
   devices: [
     { id: 'dev1', area_id: 'bad', connections: [['mac', 'aa:bb:cc:11:22:33']], identifiers: [] },
-    { id: 'dev2', area_id: null, connections: [], identifiers: [['tasmota', 'AABBCC000002']] },
+    { id: 'dev2', area_id: null, name_by_user: 'Eigener Name', connections: [], identifiers: [['tasmota', 'AABBCC000002']] },
   ],
   entities: [
     { entity_id: 'switch.bad', device_id: 'dev1', unique_id: 'x', name: null, original_name: 'Bad Schalter' },
@@ -60,7 +60,7 @@ describe('HaClient', () => {
         { id: null, entityId: 'automation.yaml_ohne_id', name: 'automation.yaml_ohne_id' },
       ],
     });
-    expect(client.link('AABBCC000002')).toMatchObject({ deviceId: 'dev2', areaName: null, entities: [], automations: [] });
+    expect(client.link('AABBCC000002')).toMatchObject({ deviceId: 'dev2', areaName: null, nameByUser: 'Eigener Name', entities: [], automations: [] });
   });
 
   it('lässt Diagnose-, Konfigurations- und deaktivierte Entitäten weg', async () => {

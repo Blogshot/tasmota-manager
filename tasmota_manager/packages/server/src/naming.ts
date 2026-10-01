@@ -1,5 +1,8 @@
 import type { Language } from '@tm/shared';
 import { isObj } from './tasmota/parse';
+import { hasClimateSensor, isLight, relayCount } from './capabilities';
+
+export { relayCount } from './capabilities';
 
 const GENERIC = /^tasmota[_-][0-9a-f]{4,6}$/i;
 const MAX_NAME = 32;
@@ -16,28 +19,6 @@ export function isGenericName(name: string, module: string | null, hostname: str
     (module !== null && lower === module.toLowerCase()) ||
     (hostname !== null && lower === hostname.toLowerCase())
   );
-}
-
-export function relayCount(status0: unknown): number {
-  return Object.keys(rec(rec(status0).StatusSTS)).filter((k) => /^POWER\d*$/.test(k)).length;
-}
-
-function hasClimateSensor(sns: Record<string, unknown>): boolean {
-  return Object.entries(sns).some(
-    ([key, value]) => {
-      // Ignore internal chip temperature (ESP32, ESP32-S2, etc.) and ENERGY blocks
-      if (/^ESP32/i.test(key) || key === 'ENERGY') return false;
-      // Top-level Temperature/Humidity keys count
-      if (key === 'Temperature' || key === 'Humidity') return true;
-      // Temperature/Humidity in other sensor blocks (e.g., DS18B20)
-      return isObj(value) && ('Temperature' in value || 'Humidity' in value);
-    },
-  );
-}
-
-function isLight(status0: unknown, module: string | null): boolean {
-  const sts = rec(rec(status0).StatusSTS);
-  return 'Dimmer' in sts || 'Color' in sts || 'CT' in sts || (module !== null && /dimmer|bulb|light|led|rgb/i.test(module));
 }
 
 interface TypeWords {

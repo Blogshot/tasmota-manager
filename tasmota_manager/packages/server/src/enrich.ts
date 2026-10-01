@@ -1,5 +1,6 @@
 import type { Device, HaLink, Language } from '@tm/shared';
 import type { PendingStore } from './changes/store';
+import { capabilitiesOf } from './capabilities';
 import { suggestNames } from './naming';
 import type { DeviceRegistry } from './registry';
 
@@ -41,6 +42,7 @@ export class DeviceEnricher {
       const suggestion = suggestions.get(d.id) ?? null;
       return {
         ...d,
+        capabilities: capabilitiesOf(raw.get(d.id)?.statusJson, raw.get(d.id)?.sensorsJson, d.module),
         ha: links.get(d.id) ?? null,
         pendingCount: counts.get(d.id) ?? 0,
         pendingName,
