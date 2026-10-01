@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanupApps, setupApp } from '../../test/appSetup';
 import { waitFor } from '../../test/helpers';
+import { StageError } from '../changes/store';
 import { DeviceGateway } from '../gateway';
 
 afterEach(cleanupApps);
@@ -89,11 +90,31 @@ describe('Änderungs-API', () => {
     expect(restored.json()).toMatchObject({ nameSuggestion: 'Climate', suggestionDismissed: false });
   });
 
-  it('meldet übersprungene Geräte und lehnt Kalibrierwerte für mehrere Geräte ab', async () => {
+  it('meldet nicht passende Einstellungen als übersprungenes Gerät', async () => {
     const { app } = await setupApp();
     await addFake(app);
     const res = await stage(app, { deviceIds: [MAC], settings: { PowerDelta: '110' }, source: 'form' });
     expect(res.json()).toEqual({ staged: 0, skipped: 0, incompatible: 1 });
+  });
+
+  it('lehnt Kalibrierwerte für mehrere Geräte mit 400 ab', async () => {
+    const { app } = await setupApp();
+    await addFake(app);
+    const res = await stage(app, { deviceIds: [MAC, 'GIBTSNICHT'], settings: { TempOffset: '1.5' }, source: 'form' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({ code: 'validation', message: expect.stringContaining('TempOffset') });
+    expect((await app.inject('/api/changes')).json()).toEqual([]);
+  });
+
+  it('antwortet bei nicht vormerkbaren Vorschlägen mit 400 statt 500', async () => {
+    const { app, store } = await setupApp({ fake: { name: 'Tasmota', sensors: { AM2301: { Temperature: 21, Humidity: 40 } } } });
+    await addFake(app);
+    vi.spyOn(store, 'stage').mockImplementation(() => {
+      throw new StageError('DeviceName is invalid');
+    });
+    const res = await app.inject({ method: 'POST', url: '/api/changes/suggestions', payload: { deviceIds: [MAC] } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({ code: 'validation' });
   });
 
   it('startet den Batch, liefert den Job und leert den Puffer', async () => {

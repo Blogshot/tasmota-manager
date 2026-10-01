@@ -26,13 +26,18 @@ export function registerChangeRoutes(app: FastifyInstance, { store, runner, jobs
     if (!body) return reply;
     const wanted = new Set(body.deviceIds);
     const total: StageResult = { staged: 0, skipped: 0, incompatible: 0 };
-    for (const device of enricher.all()) {
-      if (!wanted.has(device.id) || !device.nameSuggestion) continue;
-      const name = device.nameSuggestion;
-      const result = store.stage({ deviceIds: [device.id], settings: { DeviceName: name, FriendlyName1: name }, source: 'suggestion' });
-      total.staged += result.staged;
-      total.skipped += result.skipped;
-      total.incompatible += result.incompatible;
+    try {
+      for (const device of enricher.all()) {
+        if (!wanted.has(device.id) || !device.nameSuggestion) continue;
+        const name = device.nameSuggestion;
+        const result = store.stage({ deviceIds: [device.id], settings: { DeviceName: name, FriendlyName1: name }, source: 'suggestion' });
+        total.staged += result.staged;
+        total.skipped += result.skipped;
+        total.incompatible += result.incompatible;
+      }
+    } catch (err) {
+      if (err instanceof StageError) return reply.code(400).send({ code: 'validation', message: err.message });
+      throw err;
     }
     return total;
   });

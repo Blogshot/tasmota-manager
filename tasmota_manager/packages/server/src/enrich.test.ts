@@ -53,4 +53,16 @@ describe('DeviceEnricher', () => {
     const enricher = new DeviceEnricher(registry, store, { link: () => link }, () => 'de');
     expect(enricher.one('AABBCC000001')?.nameSuggestion).toBe('Kellerlicht');
   });
+
+  it('schlägt einen HA-Namen über 32 Zeichen nicht vor, sondern den Typnamen', () => {
+    const db = testDb();
+    const registry = new DeviceRegistry(db);
+    const store = new PendingStore(db, registry);
+    registry.upsert({ mac: 'AABBCC000001', name: 'Tasmota' }, { statusJson: { StatusSTS: { POWER: 'ON' } } });
+    const nameByUser = 'Ein sehr langer Name aus Home Assistant';
+    expect(nameByUser.length).toBe(39);
+    const link: HaLink = { deviceId: 'dev1', areaName: null, nameByUser, entities: [], automations: [] };
+    const enricher = new DeviceEnricher(registry, store, { link: () => link }, () => 'de');
+    expect(enricher.one('AABBCC000001')?.nameSuggestion).toBe('Schalter');
+  });
 });

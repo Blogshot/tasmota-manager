@@ -1,4 +1,4 @@
-import type { Device, HaLink, Language } from '@tm/shared';
+import { settingDef, type Device, type HaLink, type Language } from '@tm/shared';
 import type { PendingStore } from './changes/store';
 import { capabilitiesOf } from './capabilities';
 import { suggestNames } from './naming';
@@ -39,7 +39,9 @@ export class DeviceEnricher {
     );
     return devices.map((d) => {
       const pendingName = pendingNames.get(d.id) ?? null;
-      const haName = d.suggestionDismissed ? null : (links.get(d.id)?.nameByUser ?? null);
+      const linked = d.suggestionDismissed ? null : (links.get(d.id)?.nameByUser ?? null);
+      // DeviceName und FriendlyName1 nehmen höchstens 32 Zeichen; sonst greift der Typname.
+      const haName = linked && settingDef('DeviceName')?.schema.safeParse(linked).success ? linked : null;
       const suggestion = haName ?? suggestions.get(d.id) ?? null;
       return {
         ...d,
