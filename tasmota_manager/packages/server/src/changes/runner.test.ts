@@ -70,6 +70,16 @@ describe('ApplyRunner über HTTP', () => {
     expect(c.store.count()).toBe(0);
   });
 
+  it('schreibt und prüft gerätespezifische Einstellungen', async () => {
+    const c = await httpSetup({ sensors: { ENERGY: { Power: 5 }, AM2301: { Temperature: 21 } }, extraState: { Dimmer: 50 } });
+    const item = await run(c, {
+      settings: { PowerDelta: '110', DimmerRange: '10,90', TimeStd: '0,0,10,1,3,60', TempOffset: '-1.5' },
+      source: 'form',
+    });
+    expect(item?.status).toBe('success');
+    expect(c.store.count()).toBe(0);
+  });
+
   it('bündelt Einstellungen mit Neustart in einem Backlog und startet genau einmal neu', async () => {
     const c = await httpSetup();
     const item = await run(c, { settings: { MqttHost: 'neu.local', MqttUser: 'u1', MqttPassword: 'pw', TelePeriod: '60' }, source: 'form' });

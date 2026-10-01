@@ -118,3 +118,22 @@ describe('Rules und Timer lesen', () => {
     expect(parseTimersEnabled({ Timers: 'OFF' })).toBe(false);
   });
 });
+
+describe('neue Wertearten', () => {
+  it('liest DimmerRange und Zeitregeln aus Objekt-Antworten', () => {
+    expect(extractValue(def('DimmerRange'), { DimmerRange: { Min: 10, Max: 100 } })).toBe('10,100');
+    expect(extractValue(def('TimeStd'), { TimeStd: { Hemisphere: 0, Week: 0, Month: 10, Day: 1, Hour: 3, Offset: 60 } })).toBe(
+      '0,0,10,1,3,60',
+    );
+    expect(extractValue(def('PowerDelta'), { PowerDelta1: 110 })).toBe('110');
+  });
+
+  it('vergleicht die neuen Arten tolerant', () => {
+    expect(valuesEqual(def('DimmerRange'), '10,100', '10, 100')).toBe(true);
+    expect(valuesEqual(def('DimmerRange'), '10,100', '5,100')).toBe(false);
+    expect(valuesEqual(def('TimeDst'), '0,0,3,1,2,120', '0,0,3,1,2,120')).toBe(true);
+    expect(valuesEqual(def('TimeDst'), '0,0,3,1,2,120', '0,0,3,1,2,60')).toBe(false);
+    expect(valuesEqual(def('TempOffset'), '-1.5', '-1.5')).toBe(true);
+    expect(valuesEqual(def('TempOffset'), '1', '1.0')).toBe(true);
+  });
+});

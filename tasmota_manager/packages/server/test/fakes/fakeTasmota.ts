@@ -45,6 +45,8 @@ interface FakeRule {
 const RESTART_KEYS = new Set(['MQTTHOST', 'MQTTPORT', 'MQTTUSER', 'MQTTPASSWORD', 'TOPIC', 'HOSTNAME']);
 const isOn = (arg: string): boolean => ['1', 'ON', 'TRUE'].includes(arg.toUpperCase());
 const unquote = (arg: string): string => (arg === '""' ? '' : arg);
+/** Zahlenwerte meldet die Firmware als Zahl, nicht als Text. */
+const NUMERIC = new Set(['POWERDELTA1', 'ENERGYRES', 'WATTRES', 'SPEED', 'TEMPRES', 'HUMRES', 'TEMPOFFSET', 'HUMOFFSET']);
 const result = (payload: Json): FakeResult => ({ suffix: 'RESULT', payload });
 
 const STATUS0_SUFFIXES: Record<string, string> = {
@@ -124,6 +126,8 @@ export class FakeTasmota {
   private uptimeBase = 100;
   private restartTimer: NodeJS.Timeout | null = null;
   private stopped = false;
+  private dimmerRange = { Min: 0, Max: 100 };
+  private timeRules: Record<'TIMESTD' | 'TIMEDST', number[]> = { TIMESTD: [0, 0, 10, 1, 3, 60], TIMEDST: [0, 0, 3, 1, 2, 120] };
 
   constructor(private readonly opts: FakeTasmotaOptions) {
     this.mac = opts.mac;
@@ -153,6 +157,19 @@ export class FakeTasmota {
       Latitude: '0.000000',
       Longitude: '0.000000',
       NtpServer1: 'pool.ntp.org',
+      PowerDelta1: '0',
+      EnergyRes: '3',
+      WattRes: '0',
+      Fade: 'OFF',
+      Speed: '1',
+      SetOption20: 'OFF',
+      SetOption0: 'ON',
+      Interlock: 'OFF',
+      TempRes: '1',
+      HumRes: '1',
+      SetOption8: 'OFF',
+      TempOffset: '0',
+      HumOffset: '0',
     };
     for (const key of this.relayKeys()) this.values[key] = 'OFF';
   }
@@ -313,6 +330,19 @@ export class FakeTasmota {
       if (args) this.timersEnabled = isOn(args);
       return result({ Timers: this.timersEnabled ? 'ON' : 'OFF' });
     }
+    if (upper === 'DIMMERRANGE') {
+      const m = /^(\d+),(\d+)$/.exec(args.replace(/\s/g, ''));
+      if (args && !m) return result({ Command: 'Error' });
+      if (m) this.dimmerRange = { Min: Number(m[1]), Max: Number(m[2]) };
+      return result({ DimmerRange: { ...this.dimmerRange } });
+    }
+    if (upper === 'TIMESTD' || upper === 'TIMEDST') {
+      const parts = args.split(',').map((p) => Number(p.trim()));
+      if (args && (parts.length !== 6 || parts.some((n) => !Number.isFinite(n)))) return result({ Command: 'Error' });
+      if (args) this.timeRules[upper] = parts;
+      const [Hemisphere, Week, Month, Day, Hour, Offset] = this.timeRules[upper];
+      return result({ [upper === 'TIMESTD' ? 'TimeStd' : 'TimeDst']: { Hemisphere, Week, Month, Day, Hour, Offset } });
+    }
     const key = Object.keys(this.values).find((k) => k.toUpperCase() === upper);
     if (!key) return result({ Command: 'Unknown' });
     if (args && !(this.opts.ignore ?? []).includes(key)) {
@@ -322,6 +352,7 @@ export class FakeTasmota {
       if (RESTART_KEYS.has(upper)) this.scheduleRestart();
     }
     if (key === 'Timezone' && this.values[key] === '99') return result({ Timezone: 99 });
+    if (NUMERIC.has(upper)) return result({ [key]: Number(this.values[key]) });
     return result({ [key]: key === 'MqttPassword' ? '****' : this.values[key] });
   }
 

@@ -28,6 +28,11 @@ export function extractValue(def: SettingDef, response: unknown): string | null 
   if (def.kind === 'rule') return isObj(raw) && typeof raw.Rules === 'string' ? raw.Rules : null;
   if (def.kind === 'timer') return isObj(raw) ? JSON.stringify(normalizeTimer(raw)) : null;
   if (def.group === 'rules' && def.kind === 'bool') return isObj(raw) ? onOff(raw.State) : null;
+  if (def.kind === 'dimmerRange') return isObj(raw) ? `${raw.Min},${raw.Max}` : null;
+  if (def.kind === 'timeRule') {
+    if (!isObj(raw)) return null;
+    return [raw.Hemisphere, raw.Week, raw.Month, raw.Day, raw.Hour, raw.Offset].map((v) => String(v)).join(',');
+  }
   if (isObj(raw)) return null;
   return def.kind === 'bool' ? onOff(raw) : String(raw);
 }
@@ -56,6 +61,15 @@ export function valuesEqual(def: SettingDef, expected: string, actual: string | 
       const minutes = timezoneMinutes(expected);
       return minutes !== null && minutes === timezoneMinutes(actual);
     }
+    case 'dimmerRange':
+    case 'timeRule': {
+      const parts = (v: string) => v.split(',').map((p) => Number(p.trim()));
+      const a = parts(expected);
+      const b = parts(actual);
+      return a.length === b.length && a.every((n, i) => Number.isFinite(n) && n === b[i]);
+    }
+    case 'decimal':
+      return Math.abs(Number(expected) - Number(actual)) < 0.05;
     case 'rule':
       return normalizeRule(expected) === normalizeRule(actual);
     case 'timer':
