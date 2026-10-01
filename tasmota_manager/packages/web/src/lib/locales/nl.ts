@@ -274,4 +274,13 @@ export const nl: Record<MessageKey, string> = {
   'suggest.mqtt': "Broker op Home Assistant: {host}:{port}",
   'suggest.mqttUser': "Zoals bij je andere apparaten: {user}",
   'suggest.unit': "Zoals in Home Assistant: {unit}",
+  'fastRule.title': "Regel voor directe updates",
+  'fastRule.description': "Eén regel per apparaat die bij elke sensormeting direct telemetrie verstuurt. TelePeriod wordt op 10 s gezet.",
+  'fastRule.slot': "wordt Rule {slot}",
+  'fastRule.noSensors': "Geen geschikte sensoren",
+  'fastRule.noSlot': "Alle regelslots zijn bezet; er wordt niets overschreven",
+  'fastRule.unreachable': "Apparaat niet bereikbaar",
+  'fastRule.omitted': "Niet opgenomen: {blocks}",
+  'fastRule.stage': "Regels klaarzetten",
+  'fastRule.loading': "Regels worden gemaakt …",
 };

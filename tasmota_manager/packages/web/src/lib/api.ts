@@ -1,4 +1,4 @@
-import type { CommandResult, Device, DeviceDetail, DeviceUpdateRequest, JobView, PendingDevice, RuleState, Settings, SettingsUpdateRequest, SettingValue, StageRequest, StageResult, StatusResponse, TimersState } from '@tm/shared';
+import type { CommandResult, Device, DeviceDetail, DeviceUpdateRequest, FastRulePreview, JobView, PendingDevice, RuleState, Settings, SettingsUpdateRequest, SettingValue, StageRequest, StageResult, StatusResponse, TimersState } from '@tm/shared';
 
 export class ApiError extends Error {
   constructor(
@@ -39,6 +39,8 @@ export const api = {
   status: () => request<StatusResponse>('status'),
   scan: () => request<{ started: boolean }>('scan', json('POST', {})),
   changes: () => request<PendingDevice[]>('changes'),
+  fastRulePreview: (deviceIds: string[]) => request<FastRulePreview[]>('fast-rule/preview', json('POST', { deviceIds })),
+  fastRuleStage: (deviceIds: string[]) => request<StageResult>('fast-rule/stage', json('POST', { deviceIds })),
   stage: (req: StageRequest) => request<StageResult>('changes', json('POST', req)),
   stageSuggestions: (deviceIds: string[]) => request<StageResult>('changes/suggestions', json('POST', { deviceIds })),
   discardChange: (id: number) => request<void>(`changes/${id}`, { method: 'DELETE' }),

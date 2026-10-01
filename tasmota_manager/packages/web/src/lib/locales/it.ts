@@ -274,4 +274,13 @@ export const it: Record<MessageKey, string> = {
   'suggest.mqtt': "Broker su Home Assistant: {host}:{port}",
   'suggest.mqttUser': "Come sugli altri dispositivi: {user}",
   'suggest.unit': "Come in Home Assistant: {unit}",
+  'fastRule.title': "Regola per aggiornamenti immediati",
+  'fastRule.description': "Una regola per dispositivo che invia la telemetria a ogni misurazione del sensore. TelePeriod viene impostato su 10 s.",
+  'fastRule.slot': "diventa Rule {slot}",
+  'fastRule.noSensors': "Nessun sensore adatto",
+  'fastRule.noSlot': "Tutti gli slot delle regole sono occupati; nulla viene sovrascritto",
+  'fastRule.unreachable': "Dispositivo non raggiungibile",
+  'fastRule.omitted': "Non incluso: {blocks}",
+  'fastRule.stage': "Metti le regole in sospeso",
+  'fastRule.loading': "Creazione delle regole …",
 };

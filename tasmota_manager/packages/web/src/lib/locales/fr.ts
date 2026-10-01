@@ -274,4 +274,13 @@ export const fr: Record<MessageKey, string> = {
   'suggest.mqtt': "Broker sur Home Assistant : {host}:{port}",
   'suggest.mqttUser': "Comme sur vos autres appareils : {user}",
   'suggest.unit': "Comme dans Home Assistant : {unit}",
+  'fastRule.title': "Règle pour des mises à jour immédiates",
+  'fastRule.description': "Une règle par appareil qui envoie la télémétrie à chaque mesure du capteur. TelePeriod est réglé sur 10 s.",
+  'fastRule.slot': "devient Rule {slot}",
+  'fastRule.noSensors': "Aucun capteur adapté",
+  'fastRule.noSlot': "Tous les emplacements de règles sont occupés ; rien n’est écrasé",
+  'fastRule.unreachable': "Appareil injoignable",
+  'fastRule.omitted': "Non inclus : {blocks}",
+  'fastRule.stage': "Mettre les règles en attente",
+  'fastRule.loading': "Création des règles …",
 };

@@ -272,6 +272,15 @@ export const de = {
   'suggest.mqtt': "Broker auf Home Assistant: {host}:{port}",
   'suggest.mqttUser': "Wie bei deinen anderen Geräten: {user}",
   'suggest.unit': "Wie in Home Assistant: {unit}",
+  'fastRule.title': "Regel für sofortige Updates",
+  'fastRule.description': "Pro Gerät eine Regel, die bei jeder Sensormessung sofort Telemetrie sendet. TelePeriod wird auf 10 s gesetzt.",
+  'fastRule.slot': "wird zu Rule {slot}",
+  'fastRule.noSensors': "Keine passenden Sensoren",
+  'fastRule.noSlot': "Alle Rule-Slots belegt; nichts wird überschrieben",
+  'fastRule.unreachable': "Gerät nicht erreichbar",
+  'fastRule.omitted': "Nicht enthalten: {blocks}",
+  'fastRule.stage': "Regeln vormerken",
+  'fastRule.loading': "Regeln werden erstellt …",
 } as const;
 
 export type MessageKey = keyof typeof de;
@@ -550,4 +559,13 @@ export const en: Record<MessageKey, string> = {
   'suggest.mqtt': "Broker on Home Assistant: {host}:{port}",
   'suggest.mqttUser': "As on your other devices: {user}",
   'suggest.unit': "As in Home Assistant: {unit}",
+  'fastRule.title': "Rule for instant updates",
+  'fastRule.description': "One rule per device that sends telemetry on every sensor reading. TelePeriod is set to 10 s.",
+  'fastRule.slot': "becomes Rule {slot}",
+  'fastRule.noSensors': "No suitable sensors",
+  'fastRule.noSlot': "All rule slots are in use; nothing is overwritten",
+  'fastRule.unreachable': "Device not reachable",
+  'fastRule.omitted': "Not included: {blocks}",
+  'fastRule.stage': "Stage rules",
+  'fastRule.loading': "Creating rules …",
 };
