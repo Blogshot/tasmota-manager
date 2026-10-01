@@ -35,6 +35,16 @@ Beim Batch-Lauf gilt:
 
 Bei **Breitengrad** und **Längengrad** schlägt die App den Standort aus den Home-Assistant-Einstellungen vor; ein Klick übernimmt beide Werte. Über **Auf Karte wählen** öffnet sich eine Weltkarte, auf der ein Klick den Ort setzt. Die Kartenkacheln lädt der Browser von OpenStreetMap (tile.openstreetmap.org); ohne Internetzugang bleibt die Karte leer, der Vorschlag aus Home Assistant funktioniert trotzdem.
 
+## Einstellungen je Gerätetyp
+
+Die App erkennt aus Status und Sensoren, ob ein Gerät Energie misst, ein Licht steuert, Relais hat oder Temperatur und Feuchte misst. Das Einstellungsformular zeigt nur die passenden Gruppen: Energiemessung (PowerDelta, Nachkommastellen), Licht (Fade, Tempo, Dimmbereich, SetOption20), Relais (SetOption0, Interlock) und Klima (Nachkommastellen, °F, Korrekturwerte). Im Batch werden Einstellungen nur bei passenden Geräten vorgemerkt; die Meldung nennt übersprungene Geräte. Korrekturwerte (TempOffset, HumOffset) lassen sich nur pro Gerät setzen.
+
+Bei der TelePeriod warnt die App unter 60 Sekunden vor einer wachsenden Home-Assistant-Datenbank. Unter 10 Sekunden bietet sie eine Regel an, die bei jeder Sensormessung sofort sendet (`ON <Sensor>#<Wert> DO TelePeriod 1 ENDON`); die Regel kommt in einen freien Rule-Slot, belegte Slots werden nie überschrieben.
+
+## Vorschläge aus Home Assistant
+
+Neben einigen Feldern stehen Vorschläge aus Home Assistant: Zeitzone samt Sommerzeitregeln, ein NTP-Server für dein Land, der MQTT-Broker auf dem Home-Assistant-Host, der MQTT-Benutzer deiner übrigen Geräte und die Temperatureinheit. Ein in Home Assistant vergebener Gerätename erscheint als Namensvorschlag.
+
 ## Verknüpfung mit Home Assistant
 
 Die App liest über die Home-Assistant-API, welche Entitäten und Automationen zu einem Tasmota-Gerät gehören, und verlinkt sie in der Geräteübersicht. Den Bereich des Geräts in Home Assistant nutzt sie außerdem für Namensvorschläge. Die Entitäten-Spalte zeigt Schalter, Lichter und Sensoren; Diagnose- und Konfigurations-Entitäten sowie deaktivierte Entitäten blendet sie aus.

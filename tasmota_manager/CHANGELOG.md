@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Device-type specific settings: energy monitoring (PowerDelta, decimals), lights (fade, speed, dimmer range, SetOption20), relays (SetOption0, interlock) and climate sensors (decimals, °F, offsets).
+- Batch edits only apply settings to devices of the matching type; the confirmation names skipped devices.
+- Warning for short telemetry intervals, and a generated rule for instant updates on every sensor reading when you need faster than 10 s.
+- Suggestions from Home Assistant: timezone with daylight saving rules, NTP server for your country, MQTT broker on the Home Assistant host, the MQTT user of your other devices, temperature unit, and device names you set in Home Assistant.
+
 ## 0.3.6
 
 - Updates are now delivered as ready-made images for amd64 and aarch64. Home Assistant only downloads the image instead of building the app on your device, so updates are much faster and show download progress.
