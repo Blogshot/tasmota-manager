@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.5
+
+- Fixed: the map picker showed "Access blocked" instead of the map. OpenStreetMap rejects tile requests without a referrer, and Home Assistant suppresses it; the map now sends the origin of your Home Assistant address.
+- Faster updates: the app image no longer installs a compiler toolchain and skips the type check during the build. On a fast x86 machine the build time dropped from about 45 to about 22 seconds.
+
 ## 0.3.4
 
 - Latitude and longitude: the location from your Home Assistant settings is suggested next to the fields and can be applied with one click.

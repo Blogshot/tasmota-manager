@@ -20,6 +20,9 @@ export default function MapPicker({ center, onPick, label }: MapPickerProps) {
     const map = L.map(element.current, { worldCopyJump: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
+      // OSM blockiert Kachelabrufe ohne Referer. Home Assistant liefert Seiten mit „no-referrer“ aus;
+      // pro Kachel senden wir deshalb wenigstens den Ursprung (ohne Pfad) mit.
+      referrerPolicy: 'strict-origin-when-cross-origin',
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>',
     }).addTo(map);
     // Kreis statt Standard-Marker: dessen Bilddateien findet Leaflet nach dem Bündeln nicht.
