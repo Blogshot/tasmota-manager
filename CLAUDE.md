@@ -1,0 +1,62 @@
+# Tasmota Manager – Hinweise für Claude
+
+Home-Assistant-App (früher „Add-on“) zur Verwaltung und Batch-Konfiguration aller Tasmota-Geräte im LAN, ähnlich TasmoAdmin, mit moderner Oberfläche.
+
+## Kommunikation
+
+- Mit dem Nutzer auf Deutsch, mit korrekten Umlauten. Commit-Nachrichten auf Deutsch.
+- Öffentliche Texte (README, CHANGELOG, Forenbeiträge) auf Englisch. `DOCS.md` ist deutsch.
+
+## Grundregel: Änderungen werden vorgemerkt
+
+„Umsetzen“, „übernehmen“ o. Ä. heißt: Jede Änderung an einem Tasmota-Gerät landet zuerst im Änderungspuffer (`pending_changes`) und wird erst geschrieben, wenn der Nutzer den Batch-Lauf startet. Neue Funktionen, die Geräte verändern, laufen über Puffer und `ApplyRunner`, nicht über direkte Befehle.
+
+Bewusste Ausnahmen, die sofort wirken: Schalten (Relais-Buttons, Toggle), Neustart und freie Befehle in der Konsole, Tags und Passwort pro Gerät. Reine Abfragen (Status, Rules, Timer, einzelne Einstellungen lesen) sind jederzeit erlaubt. Im Zweifel nachfragen.
+
+## Aufbau
+
+- Repo-Wurzel = HA-App-Repository (`repository.yaml`). Der Supervisor baut lokal, Build-Kontext ist der App-Ordner, deshalb liegt das Monorepo in `tasmota_manager/`.
+- `tasmota_manager/config.yaml`: Version, Ingress (Port 8099), `host_network`, `mqtt:want`, `homeassistant_api`.
+- pnpm-Workspace (pnpm 10, TypeScript strict, ESM):
+  - `packages/shared`: zod-Schemas, Typen, Einstellungskatalog (`catalog.ts`: `SETTINGS`, `issue()` für Validierungsschlüssel), Sprachen (`LANGUAGES`, `resolveLanguage`).
+  - `packages/server`: Fastify 5, better-sqlite3 + Drizzle (Migrationen in `drizzle/`, erzeugen mit `pnpm db:generate --name <name>`), mqtt.js, HA-WebSocket-Client.
+  - `packages/web`: React 19, Vite, Tailwind 4, shadcn/ui (radix), TanStack Query/Table, Leaflet (lazy geladen).
+- Wichtige Server-Bausteine: `DeviceRegistry` (MAC als ID), `DeviceGateway` (MQTT bevorzugt, HTTP als Rückfall, nur sicher wiederholbare Fallbacks), `PendingStore`, `ApplyRunner`, `DeviceOps`, `HaClient`, `DeviceEnricher`, `naming.ts`.
+
+## Befehle
+
+```bash
+cd tasmota_manager
+pnpm install
+pnpm typecheck
+pnpm test
+pnpm build
+docker build -t tasmota-manager:dev tasmota_manager   # aus der Repo-Wurzel
+```
+
+## Konventionen im Code
+
+- Testgetrieben arbeiten (erst fehlschlagender Test). Das Fake-Gerät (`server/test/fakes/fakeTasmota.ts`) muss sich wie echte Firmware verhalten, nicht wie die App es erwartet. Beispiel: `Status 0` kommt per MQTT als eine Nachricht pro Block (`STATUS`, `STATUS1` … `STATUS11`).
+- Oberflächentexte nur über Schlüssel. Jede neue Taste gehört in alle sechs Wörterbücher: `web/src/lib/messages.ts` (de, en) und `web/src/lib/locales/{fr,es,it,nl}.ts`. Ein Test prüft Vollständigkeit und Platzhalter.
+- Fehler vom Server: Code plus englischer Rohtext (`timeout: …`, `verify_mismatch: expected "x", got "y"`). Validierungstexte als Schlüssel (`invalid.range|0|5`). Übersetzt wird in `web/src/lib/errors.ts`.
+- Passwörter nie in API-Antworten oder Logs; freie Befehle mit Passwörtern werden in `GET /api/changes` maskiert.
+- Firmware-Verhalten, das nur aus der Erinnerung stammt, als solches kennzeichnen.
+
+## Arbeitsweise
+
+- Größere Vorhaben: superpowers-Skills (brainstorming → Spec in `docs/superpowers/specs/` → Plan in `docs/superpowers/plans/` → subagent-driven-development). Kleinere, abgegrenzte Änderungen: kurzes Design im Chat, auf Ja warten, dann umsetzen.
+- Neue Arbeit auf einem eigenen Branch. Mergen und pushen nur auf ausdrückliche Ansage des Nutzers.
+- Zurückgestellte Review-Befunde und offene Punkte stehen in `docs/superpowers/plans/2026-09-29-plan-*-followups.md`.
+
+## Release-Ablauf (bei jedem neuen Build)
+
+1. Version in `tasmota_manager/config.yaml` anheben (Semver; Fehlerbehebungen → Patch, neue Funktionen → Minor).
+2. `tasmota_manager/CHANGELOG.md` ergänzen: neuer Abschnitt `## <Version>` oben, auf Englisch, aus Nutzersicht. HA zeigt diese Datei im Update-Dialog an. Nicht veröffentlichte Zwischenversionen in die nächste veröffentlichte Version zusammenfassen.
+3. Annotierten Git-Tag `v<Version>` auf den Release-Commit setzen; Nachricht = Changelog-Abschnitt.
+4. Nach dem Push (nur auf Ansage): Tag mit pushen (`git push origin main --follow-tags`), Forgejo-Release zum Tag mit dem Changelog-Abschnitt anlegen, Pipeline-Ergebnis abwarten und melden.
+
+## Infrastruktur
+
+- Remote `origin`: Forgejo `ssh://git@git.knott.ac:222/Sascha/tasmota-manager.git` (öffentlich). Forgejo spiegelt nach GitHub `https://github.com/Blogshot/tasmota-manager`; die README und der Installations-Button verweisen auf GitHub.
+- CI: `.forgejo/workflows/ci.yml` auf dem Runner mit Label `swarm-manager` (Test-Job in `node:22`, Image-Build direkt auf dem Runner). Ergebnis per `https://git.knott.ac/api/v1/repos/Sascha/tasmota-manager/actions/tasks` abfragbar.
+- Commit-Trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.

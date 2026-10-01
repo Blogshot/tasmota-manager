@@ -1,0 +1,39 @@
+# Changelog
+
+## 0.3.4
+
+- Latitude and longitude: the location from your Home Assistant settings is suggested next to the fields and can be applied with one click.
+- New map picker: open a world map, drag and zoom, and click to set the location. Map tiles are loaded from OpenStreetMap.
+- Name suggestions can be dismissed with the small red "X" in the label. A dismissed suggestion is no longer shown or applied; the confirmation offers "Undo".
+- Pending changes: unknown old values (e.g. telemetry interval, timezone, location, SetOptions, rules, timers) are now read live from the device, so you see the actual change.
+
+## 0.3.1
+
+- Entity labels now open the device page in Home Assistant. The entity list cannot be pre-filtered by URL, so the old links showed an unfiltered list.
+- The entity column shows at most three entities; the rest are behind a "…" button.
+
+## 0.3.0
+
+- Language selection in the settings: English, German, French, Spanish, Italian and Dutch. "Automatic" follows your Home Assistant profile and falls back to English. French, Spanish, Italian and Dutch are machine-translated.
+- Name suggestions use the selected language.
+- New "Switch" column: one button per relay or light shows the current state and toggles it right away.
+- The entity column hides diagnostic, configuration and disabled entities.
+- Error messages are translated in the interface.
+
+## 0.2.1
+
+- Fixed: names, status and sensors of MQTT devices were never refreshed (for example after a rename in a batch run).
+- Fixed: drop-down lists were unreadable in dark mode.
+
+## 0.2.0
+
+- Changes are staged first and only written to the devices when you start the batch run.
+- Batch editing of settings, free commands, rules and timers for several devices.
+- Safe batch runs: restart settings are bundled per device, the app waits for the restart and verifies every value.
+- Name suggestions for devices still called "Tasmota", based on sensors and the Home Assistant area.
+- Links to Home Assistant entities and automations.
+- Rules and timers editor in the device details.
+
+## 0.1.0
+
+- First release: device discovery via MQTT and network scan, device overview, device details with console, tags and per-device passwords.
