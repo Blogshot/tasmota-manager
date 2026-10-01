@@ -137,21 +137,16 @@ Tasmota erlaubt als kürzestes Intervall 10 Sekunden. Wer schneller Werte brauch
 
 **Erzeugung (Server, `fastRule.ts`):**
 
-- Grundlage sind die Sensorwerte aus dem gespeicherten Status 10 des Geräts, z. B. `AM2301.Temperature`, `AM2301.Humidity`, `DS18B20.Temperature`.
-- Pro Wert eine Zeile nach dem Muster `ON <Sensor>#<Wert>!=%var<k>% DO Backlog Var<k> %value%; TelePeriod 1 ENDON`. `Var<k>` merkt sich den zuletzt gemeldeten Wert, `TelePeriod 1` löst sofort eine Telemetrie aus, ohne das Intervall zu ändern.
-- Ausgelassen werden der Block `ENERGY` (dafür gibt es `PowerDelta`, das die App stattdessen vorschlägt), interne Chip-Temperaturen (`ESP32*`) sowie Zeit- und Zählerfelder.
-- Grenzen: höchstens 16 Werte (`Var1`–`Var16`) und 511 Zeichen. Passt nicht alles hinein, nimmt die Vorschau die ersten Werte und sagt, welche fehlen.
+- Grundlage sind die Sensorblöcke aus dem gespeicherten Status 10 des Geräts, z. B. `AM2301`, `DS18B20`, `VL53L0X`.
+- Pro Sensorblock eine Zeile mit dessen erstem Messwert als Auslöser: `ON <Sensor>#<Wert> DO TelePeriod 1 ENDON`, z. B. `ON VL53L0X#Distance DO TelePeriod 1 ENDON`. Ein Block wird als Ganzes gelesen, ein Auslöser pro Block genügt. `TelePeriod 1` löst sofort eine Telemetrie per MQTT aus (bestätigt vom Nutzer).
+- Ausgelassen werden der Block `ENERGY` (dafür gibt es `PowerDelta`, das die App stattdessen vorschlägt) und interne Chip-Temperaturen (`ESP32*`).
+- Grenze: 511 Zeichen. Passt nicht alles hinein, nimmt die Vorschau die ersten Blöcke und sagt, welche fehlen.
 - **Slot-Wahl:** der erste leere Rule-Slot (live gelesen). Sind alle drei belegt, bietet die App keinen Slot an und erklärt, warum; überschrieben wird nie automatisch.
 - Geräte ohne passende Sensoren (oder nur mit `ENERGY`) bekommen keine Regel; die Vorschau nennt sie.
 
 **Batch:** Die Regel wird pro Gerät aus dessen eigenen Sensoren erzeugt; die Vorschau listet alle ausgewählten Geräte mit ihrer Regel.
 
-**Unsicher (aus der Doku, nicht getestet):**
-
-- ob Sensor-Trigger ohne `Tele-`-Präfix bei jeder Messung auslösen oder nur im Telemetrie-Takt;
-- ob `TelePeriod 1` sofort sendet, ohne das Intervall zu verändern.
-
-Beides prüft der Smoke-Test (Abschnitt 8) an einem echten Gerät, bevor die Funktion als fertig gilt.
+**Noch zu prüfen:** Das Muster stammt aus der Praxis des Nutzers. Wie oft der Auslöser bei verschiedenen Sensoren feuert (bei jeder Messung, z. B. jede Sekunde), zeigt der Smoke-Test (Abschnitt 8); bei sehr häufigen Messungen entstehen entsprechend viele MQTT-Nachrichten.
 
 ## 6. Oberfläche
 
@@ -171,7 +166,7 @@ Beides prüft der Smoke-Test (Abschnitt 8) an einem echten Gerät, bevor die Fun
 - Unit-Tests: Fähigkeiten-Erkennung, Formate `DimmerRange` und `TimeStd`/`TimeDst` (lesen, vergleichen), Zeitzonen-Umrechnung, häufigster MQTT-Benutzer, HA-Namensvorschlag.
 - Store/API: Überspringen nach Fähigkeiten, `incompatible` in der Antwort, `batch: false` bei mehreren Geräten.
 - Runner mit Fake-Gerät: Schreiben und Verify für `PowerDelta`, `DimmerRange`, `TimeStd`.
-- Unit-Tests für die Regel-Erzeugung: Muster, ausgelassene Felder, 16-Werte- und 511-Zeichen-Grenze, Slot-Wahl.
+- Unit-Tests für die Regel-Erzeugung: Muster, ein Auslöser pro Sensorblock, ausgelassene Blöcke, 511-Zeichen-Grenze, Slot-Wahl.
 - Web: gefilterte Gruppen, „gilt für X von Y“, TelePeriod-Warnung unter 60 s, PowerDelta-Hinweis nur bei Energiemessung, Regel-Angebot unter 10 s mit Vorschau, HA-Vorschläge füllen die Felder.
 - **Smoke-Test an echten Geräten (Nutzer):** eine Steckdose (`PowerDelta`), eine Lampe (`DimmerRange`, `Fade`), ein Gerät mit Zeitzone aus HA, ein Gerät mit Klimasensor und Sofort-Regel. Prüft die Antwortformate aus 3.3 und das Verhalten aus 5a.
 
