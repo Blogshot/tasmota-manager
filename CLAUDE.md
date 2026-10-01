@@ -55,7 +55,15 @@ docker build -t tasmota-manager:dev tasmota_manager   # aus der Repo-Wurzel
 3. Annotierten Git-Tag `v<Version>` auf den Release-Commit setzen; Nachricht = Changelog-Abschnitt.
 4. Nach dem Push (nur auf Ansage): Tag mit pushen (`git push origin main --follow-tags`), Pipeline-Ergebnis abwarten und melden.
 5. GitHub-Spiegelung auslösen (siehe unten) und prüfen, dass Commit und Tag auf GitHub angekommen sind.
-6. Release auf GitHub zum Tag anlegen, Text = Changelog-Abschnitt. GitHub ist die öffentliche Quelle; ein Forgejo-Release sieht niemand außer dem Nutzer. Fehlt der Zugriff auf GitHub (keine `gh`-CLI, GitHub-MCP nicht angemeldet), dem Nutzer den fertigen Release-Text geben, statt ein Forgejo-Release als Ersatz anzulegen.
+6. Release auf GitHub zum Tag anlegen, Titel `Tasmota Manager <Version>`, Text = Changelog-Abschnitt plus Link auf die vollständige `CHANGELOG.md` auf GitHub. GitHub ist die öffentliche Quelle; ein Forgejo-Release sieht niemand außer dem Nutzer. Der GitHub-MCP kann keine Releases anlegen, deshalb über die REST-API mit dem Token aus `$GITHUB_PERSONAL_ACCESS_TOKEN` (fine-grained, Contents: Read and write), ohne ihn auszugeben:
+
+   ```bash
+   curl -s -X POST -H "Authorization: Bearer $GITHUB_PERSONAL_ACCESS_TOKEN" -H "Accept: application/vnd.github+json" \
+     --data @release.json https://api.github.com/repos/Blogshot/tasmota-manager/releases
+   # release.json: {"tag_name":"v<Version>","name":"Tasmota Manager <Version>","body":"…","make_latest":"true"}
+   ```
+
+   Der Tag muss vorher auf GitHub angekommen sein (Schritt 5). Antwortet GitHub mit 401, läuft Claude Code vermutlich noch mit einem alten Token: Die Sitzung hängt an einem `claude daemon`, der Terminal-Neustarts überlebt. Dann den Nutzer bitten, Claude Code zu beenden, `claude daemon stop --any` auszuführen und neu zu starten.
 
 ## Infrastruktur
 
