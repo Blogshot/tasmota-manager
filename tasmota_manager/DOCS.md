@@ -39,7 +39,7 @@ Bei **Breitengrad** und **Längengrad** schlägt die App den Standort aus den Ho
 
 Die App erkennt aus Status und Sensoren, ob ein Gerät Energie misst, ein Licht steuert, Relais hat oder Temperatur und Feuchte misst. Das Einstellungsformular zeigt nur die passenden Gruppen: Energiemessung (PowerDelta, Nachkommastellen), Licht (Fade, Tempo, Dimmbereich, SetOption20), Relais (SetOption0, Interlock) und Klima (Nachkommastellen, °F, Korrekturwerte). Im Batch werden Einstellungen nur bei passenden Geräten vorgemerkt; die Meldung nennt übersprungene Geräte. Korrekturwerte (TempOffset, HumOffset) lassen sich nur pro Gerät setzen.
 
-Bei der TelePeriod warnt die App unter 60 Sekunden vor einer wachsenden Home-Assistant-Datenbank. Unter 10 Sekunden bietet sie eine Regel an, die bei jeder Sensormessung sofort sendet (`ON <Sensor>#<Wert> DO TelePeriod 1 ENDON`); die Regel kommt in einen freien Rule-Slot, belegte Slots werden nie überschrieben.
+Bei der TelePeriod warnt die App unter 60 Sekunden vor einer wachsenden Home-Assistant-Datenbank. Unter 10 Sekunden bietet sie eine Regel an, die bei jeder Sensormessung sofort sendet (`ON <Sensor>#<Wert> DO TelePeriod ENDON`; `TelePeriod` ohne Argument sendet sofort, ohne das Intervall zu ändern); die Regel kommt in einen freien Rule-Slot, belegte Slots werden nie überschrieben.
 
 ## Vorschläge aus Home Assistant
 

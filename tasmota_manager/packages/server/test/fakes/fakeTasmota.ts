@@ -46,7 +46,7 @@ const RESTART_KEYS = new Set(['MQTTHOST', 'MQTTPORT', 'MQTTUSER', 'MQTTPASSWORD'
 const isOn = (arg: string): boolean => ['1', 'ON', 'TRUE'].includes(arg.toUpperCase());
 const unquote = (arg: string): string => (arg === '""' ? '' : arg);
 /** Zahlenwerte meldet die Firmware als Zahl, nicht als Text. */
-const NUMERIC = new Set(['POWERDELTA1', 'ENERGYRES', 'WATTRES', 'SPEED', 'TEMPRES', 'HUMRES', 'TEMPOFFSET', 'HUMOFFSET']);
+const NUMERIC = new Set(['POWERDELTA1', 'ENERGYRES', 'WATTRES', 'SPEED', 'TEMPRES', 'HUMRES', 'TEMPOFFSET', 'HUMOFFSET', 'TELEPERIOD']);
 const result = (payload: Json): FakeResult => ({ suffix: 'RESULT', payload });
 
 const STATUS0_SUFFIXES: Record<string, string> = {
@@ -347,7 +347,8 @@ export class FakeTasmota {
     if (!key) return result({ Command: 'Unknown' });
     if (args && !(this.opts.ignore ?? []).includes(key)) {
       const current = this.values[key];
-      if (key === 'Timezone') this.values[key] = firmwareTimezone(args, current ?? '99');
+      if (key === 'TelePeriod') this.values[key] = args.trim() === '1' ? '300' : unquote(args); // wie die Firmware: 1 = Standardwert
+      else if (key === 'Timezone') this.values[key] = firmwareTimezone(args, current ?? '99');
       else this.values[key] = current === 'ON' || current === 'OFF' ? (isOn(args) ? 'ON' : 'OFF') : unquote(args);
       if (RESTART_KEYS.has(upper)) this.scheduleRestart();
     }

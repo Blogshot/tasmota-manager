@@ -6,14 +6,14 @@ const sns = (blocks: Record<string, unknown>) => ({ StatusSNS: { Time: '2026-10-
 describe('buildFastRule', () => {
   it('erzeugt einen Auslöser pro Sensorblock mit dessen erstem Messwert', () => {
     expect(buildFastRule(sns({ AM2301: { Temperature: 21, Humidity: 40 }, VL53L0X: { Distance: 120 } }))).toEqual({
-      rule: 'ON AM2301#Temperature DO TelePeriod 1 ENDON ON VL53L0X#Distance DO TelePeriod 1 ENDON',
+      rule: 'ON AM2301#Temperature DO TelePeriod ENDON ON VL53L0X#Distance DO TelePeriod ENDON',
       included: ['AM2301', 'VL53L0X'],
       omitted: [],
     });
   });
   it('lässt ENERGY und Chip-Temperaturen aus', () => {
     expect(buildFastRule(sns({ ENERGY: { Power: 5 }, ESP32: { Temperature: 40 }, DS18B20: { Temperature: 20 } }))).toEqual({
-      rule: 'ON DS18B20#Temperature DO TelePeriod 1 ENDON',
+      rule: 'ON DS18B20#Temperature DO TelePeriod ENDON',
       included: ['DS18B20'],
       omitted: ['ENERGY', 'ESP32'],
     });

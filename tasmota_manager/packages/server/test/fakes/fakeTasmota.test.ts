@@ -62,4 +62,13 @@ describe('FakeTasmota', () => {
     fake = await new FakeTasmota({ mac: 'AABBCC000001', ignore: ['LedState'] }).start();
     expect(await send('LedState 5')).toEqual({ LedState: '1' });
   });
+
+  it('behandelt TelePeriod 1 wie die Firmware: Standardwert 300, ohne Argument unverändert', async () => {
+    fake = await new FakeTasmota({ mac: 'AABBCC000001' }).start();
+    await send('TelePeriod 10');
+    expect(await send('TelePeriod')).toEqual({ TelePeriod: 10 });
+    expect(await send('TelePeriod 1')).toEqual({ TelePeriod: 300 });
+    await send('TelePeriod 10');
+    expect(await send('TelePeriod')).toEqual({ TelePeriod: 10 });
+  });
 });

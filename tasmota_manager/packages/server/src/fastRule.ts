@@ -3,7 +3,7 @@ import { isObj } from './tasmota/parse';
 
 const SKIPPED = (key: string) => key === 'ENERGY' || /^ESP32/i.test(key);
 
-/** Eine Regel, die bei jeder Messung eines Sensorblocks sofort Telemetrie sendet (`TelePeriod 1`). */
+/** Eine Regel, die bei jeder Messung eines Sensorblocks sofort Telemetrie sendet (`TelePeriod` ohne Argument). */
 export function buildFastRule(sensors: unknown): { rule: string | null; included: string[]; omitted: string[] } {
   const sns = isObj(sensors) && isObj(sensors.StatusSNS) ? sensors.StatusSNS : {};
   const included: string[] = [];
@@ -17,7 +17,7 @@ export function buildFastRule(sensors: unknown): { rule: string | null; included
     }
     const field = Object.entries(values).find(([, v]) => typeof v === 'number')?.[0];
     if (!field) continue;
-    const line = `ON ${block}#${field} DO TelePeriod 1 ENDON`;
+    const line = `ON ${block}#${field} DO TelePeriod ENDON`;
     if ([...lines, line].join(' ').length > MAX_RULE_LENGTH) {
       omitted.push(block);
       continue;

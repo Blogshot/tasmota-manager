@@ -140,7 +140,7 @@ Tasmota erlaubt als kürzestes Intervall 10 Sekunden. Wer schneller Werte brauch
 **Erzeugung (Server, `fastRule.ts`):**
 
 - Grundlage sind die Sensorblöcke aus dem gespeicherten Status 10 des Geräts, z. B. `AM2301`, `DS18B20`, `VL53L0X`.
-- Pro Sensorblock eine Zeile mit dessen erstem Messwert als Auslöser: `ON <Sensor>#<Wert> DO TelePeriod 1 ENDON`, z. B. `ON VL53L0X#Distance DO TelePeriod 1 ENDON`. Ein Block wird als Ganzes gelesen, ein Auslöser pro Block genügt. `TelePeriod 1` löst sofort eine Telemetrie per MQTT aus (bestätigt vom Nutzer).
+- Pro Sensorblock eine Zeile mit dessen erstem Messwert als Auslöser: `ON <Sensor>#<Wert> DO TelePeriod ENDON`, z. B. `ON VL53L0X#Distance DO TelePeriod ENDON`. Ein Block wird als Ganzes gelesen, ein Auslöser pro Block genügt. `TelePeriod` ohne Argument löst sofort eine Telemetrie per MQTT aus, ohne das Intervall zu ändern. Bewusst nicht `TelePeriod 1`: In der Firmware setzt das Intervall auf den Standardwert (300 s) zurück und sendet dabei sofort; der Batch schreibt TelePeriod 10, die Regel würde direkt danach feuern und der Verify läse 300 (Befund aus dem Abschluss-Review).
 - Ausgelassen werden der Block `ENERGY` (dafür gibt es `PowerDelta`, das die App stattdessen vorschlägt) und interne Chip-Temperaturen (`ESP32*`).
 - Grenze: 511 Zeichen. Passt nicht alles hinein, nimmt die Vorschau die ersten Blöcke und sagt, welche fehlen.
 - **Slot-Wahl:** der erste leere Rule-Slot (live gelesen). Sind alle drei belegt, bietet die App keinen Slot an und erklärt, warum; überschrieben wird nie automatisch.

@@ -159,7 +159,7 @@ describe('Änderungs-API', () => {
     await addFake(app);
     const preview = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC] } });
     expect(preview.json()).toEqual([
-      expect.objectContaining({ rule: 'ON AM2301#Temperature DO TelePeriod 1 ENDON', slot: 1, reason: 'ok' }),
+      expect.objectContaining({ rule: 'ON AM2301#Temperature DO TelePeriod ENDON', slot: 1, reason: 'ok' }),
     ]);
     const staged = await app.inject({ method: 'POST', url: '/api/fast-rule/stage', payload: { deviceIds: [MAC] } });
     expect(staged.json()).toMatchObject({ staged: 3 });
