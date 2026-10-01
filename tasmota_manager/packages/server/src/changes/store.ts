@@ -7,12 +7,14 @@ import {
   type StageResult,
   readFromStatus,
   renderPlaceholders,
+  settingApplies,
   settingDef,
 } from '@tm/shared';
 import { and, count, eq, inArray, max } from 'drizzle-orm';
 import { prettifyError } from 'zod';
 import type { Db } from '../db';
 import { pendingChanges } from '../db/schema';
+import { capabilitiesOf } from '../capabilities';
 import type { DeviceRegistry } from '../registry';
 import { valuesEqual } from './catalog';
 
@@ -70,16 +72,26 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
   stage(req: StageRequest): StageResult {
     let staged = 0;
     let skipped = 0;
+    let incompatible = 0;
+    for (const key of Object.keys(req.settings ?? {})) {
+      if (settingDef(key)?.perDevice && req.deviceIds.length > 1) throw new StageError(`${key} can only be set per device`);
+    }
     const now = this.now().toISOString();
     this.db.transaction((tx) => {
       for (const deviceId of req.deviceIds) {
         const device = this.registry.get(deviceId);
         if (!device) throw new StageError(`Unknown device ${deviceId}`);
         const status = this.registry.getStatus(deviceId);
+        const capabilities = capabilitiesOf(status, this.registry.getSensors(deviceId), device.module);
+        let deviceIncompatible = false;
 
         for (const [key, raw] of Object.entries(req.settings ?? {})) {
           const def = settingDef(key);
           if (!def) throw new StageError(`Unknown setting ${key}`);
+          if (!settingApplies(def, capabilities)) {
+            deviceIncompatible = true;
+            continue;
+          }
           const input = def.kind === 'rule' ? raw.replace(/\s*\n\s*/g, ' ').trim() : raw;
           const parsed = def.schema.safeParse(input);
           if (!parsed.success) throw new StageError(`${key}: ${prettifyError(parsed.error)}`);
@@ -101,6 +113,7 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
             .run();
           staged++;
         }
+        if (deviceIncompatible) incompatible++;
 
         let position =
           tx.select({ last: max(pendingChanges.position) }).from(pendingChanges).where(eq(pendingChanges.deviceId, deviceId)).get()
@@ -117,7 +130,7 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
       }
     });
     this.changed();
-    return { staged, skipped, incompatible: 0 };
+    return { staged, skipped, incompatible };
   }
 
   list(): PendingDevice[] {

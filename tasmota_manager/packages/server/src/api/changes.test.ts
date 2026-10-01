@@ -88,6 +88,13 @@ describe('Änderungs-API', () => {
     expect(restored.json()).toMatchObject({ nameSuggestion: 'Climate', suggestionDismissed: false });
   });
 
+  it('meldet übersprungene Geräte und lehnt Kalibrierwerte für mehrere Geräte ab', async () => {
+    const { app } = await setupApp();
+    await addFake(app);
+    const res = await stage(app, { deviceIds: [MAC], settings: { PowerDelta: '110' }, source: 'form' });
+    expect(res.json()).toEqual({ staged: 0, skipped: 0, incompatible: 1 });
+  });
+
   it('startet den Batch, liefert den Job und leert den Puffer', async () => {
     const { app, fake, runner } = await setupApp();
     await addFake(app);

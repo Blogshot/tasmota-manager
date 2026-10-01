@@ -179,4 +179,30 @@ describe('PendingStore', () => {
     store.stage({ deviceIds: [A], settings: { DeviceName: 'Klima Bad', FriendlyName1: 'Klima Bad' }, source: 'suggestion' });
     expect(store.pendingNames().get(A)).toBe('Klima Bad');
   });
+
+  it('merkt gerätespezifische Einstellungen nur bei passenden Geräten vor', () => {
+    registry.upsert({ mac: 'AABBCC0000E1', name: 'Steckdose' }, { statusJson: { StatusSTS: { POWER: 'ON' } }, sensorsJson: { StatusSNS: { ENERGY: { Power: 5 } } } });
+    registry.upsert({ mac: 'AABBCC0000L1', name: 'Lampe' }, { statusJson: { StatusSTS: { POWER: 'ON', Dimmer: 50 } }, sensorsJson: { StatusSNS: {} } });
+    registry.upsert({ mac: 'AABBCC0000U1', name: 'Unbekannt' });
+    const result = store.stage({
+      deviceIds: ['AABBCC0000E1', 'AABBCC0000L1', 'AABBCC0000U1'],
+      settings: { PowerDelta: '110', Fade: '1', LedState: '2' },
+      source: 'form',
+    });
+    expect(result).toEqual({ staged: 5, skipped: 0, incompatible: 3 });
+    expect(store.forDevice('AABBCC0000E1').map((r) => r.key).sort()).toEqual(['LedState', 'PowerDelta']);
+    expect(store.forDevice('AABBCC0000L1').map((r) => r.key).sort()).toEqual(['Fade', 'LedState']);
+    // Ohne bekannte Fähigkeiten nur die allgemeinen Einstellungen.
+    expect(store.forDevice('AABBCC0000U1').map((r) => r.key)).toEqual(['LedState']);
+  });
+
+  it('lehnt gerätespezifische Kalibrierwerte für mehrere Geräte ab', () => {
+    const climate = { statusJson: { StatusSTS: {} }, sensorsJson: { StatusSNS: { AM2301: { Temperature: 21 } } } };
+    registry.upsert({ mac: 'AABBCC0000C1', name: 'Bad' }, climate);
+    registry.upsert({ mac: 'AABBCC0000C2', name: 'Flur' }, climate);
+    expect(() => store.stage({ deviceIds: ['AABBCC0000C1', 'AABBCC0000C2'], settings: { TempOffset: '-1' }, source: 'form' })).toThrow(
+      /TempOffset/,
+    );
+    expect(store.stage({ deviceIds: ['AABBCC0000C1'], settings: { TempOffset: '-1' }, source: 'detail' })).toMatchObject({ staged: 1 });
+  });
 });

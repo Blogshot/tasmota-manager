@@ -32,6 +32,7 @@ export function registerChangeRoutes(app: FastifyInstance, { store, runner, jobs
       const result = store.stage({ deviceIds: [device.id], settings: { DeviceName: name, FriendlyName1: name }, source: 'suggestion' });
       total.staged += result.staged;
       total.skipped += result.skipped;
+      total.incompatible += result.incompatible;
     }
     return total;
   });
