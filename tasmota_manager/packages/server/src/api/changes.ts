@@ -25,7 +25,7 @@ export function registerChangeRoutes(app: FastifyInstance, { store, runner, jobs
     const body = parseBody(DeviceIdsRequestSchema, req.body, reply);
     if (!body) return reply;
     const wanted = new Set(body.deviceIds);
-    const total: StageResult = { staged: 0, skipped: 0 };
+    const total: StageResult = { staged: 0, skipped: 0, incompatible: 0 };
     for (const device of enricher.all()) {
       if (!wanted.has(device.id) || !device.nameSuggestion) continue;
       const name = device.nameSuggestion;

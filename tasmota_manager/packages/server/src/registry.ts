@@ -286,6 +286,7 @@ function toDevice(row: DeviceRow, tagNames: string[]): Device {
     tags: tagNames,
     setOption4: hasSetOption4(row.statusJson),
     power: row.power ?? [],
+    capabilities: [],
     ha: null,
     nameSuggestion: null,
     suggestionDismissed: row.suggestionDismissed,

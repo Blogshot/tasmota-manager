@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export type SettingKind = 'text' | 'int' | 'bool' | 'coord' | 'timezone' | 'rule' | 'timer';
+export type SettingKind = 'text' | 'int' | 'bool' | 'coord' | 'timezone' | 'rule' | 'timer' | 'dimmerRange' | 'timeRule' | 'decimal';
 export type SettingGroup =
   | 'names'
   | 'power'
@@ -10,9 +10,17 @@ export type SettingGroup =
   | 'location'
   | 'time'
   | 'telemetry'
+  | 'energy'
+  | 'light'
+  | 'relay'
+  | 'climate'
   | 'mqtt'
   | 'rules'
   | 'timers';
+
+/** Fähigkeiten eines Geräts, abgeleitet aus Status 0 und Status 10 (Server: capabilities.ts). */
+export const CAPABILITIES = ['energy', 'light', 'relay', 'multiRelay', 'climate'] as const;
+export type Capability = (typeof CAPABILITIES)[number];
 
 export interface SettingDef {
   key: string;
@@ -27,6 +35,12 @@ export interface SettingDef {
   order: number;
   /** Im Batch-Formular für mehrere Geräte anbieten. */
   batch: boolean;
+  /** Nur für Geräte mit einer dieser Fähigkeiten; leer = für alle Geräte. */
+  appliesTo: readonly Capability[];
+  /** Gerätespezifischer Wert (Kalibrierung): nie für mehrere Geräte zugleich vormerken. */
+  perDevice: boolean;
+  /** Erklärender Text unter dem Feld (Wörterbuch `hint.<key>`). */
+  hint: boolean;
 }
 
 export const MAX_RULE_LENGTH = 511;
@@ -53,6 +67,28 @@ const coord = (limit: number) =>
     .trim()
     .regex(/^-?\d{1,3}(\.\d{1,6})?$/, { message: issue('decimal') })
     .refine((v) => Math.abs(Number(v)) <= limit, { message: issue('maxAbs', limit) });
+const decimal = (limit: number) =>
+  z
+    .string()
+    .trim()
+    .regex(/^-?\d{1,2}(\.\d)?$/, { message: issue('decimal') })
+    .refine((v) => Math.abs(Number(v)) <= limit, { message: issue('maxAbs', limit) });
+const dimmerRange = z
+  .string()
+  .trim()
+  .regex(/^\d{1,3},\d{1,3}$/, { message: issue('dimmerRange') })
+  .refine(
+    (v) => {
+      const [min, max] = v.split(',').map(Number) as [number, number];
+      return min < max && max <= 100;
+    },
+    { message: issue('dimmerRange') },
+  );
+// Tasmota: Hemisphäre (0 Nord, 1 Süd), Woche (0 = letzte, 1–4), Monat, Tag (1 = Sonntag), Stunde, Versatz in Minuten.
+const timeRule = z
+  .string()
+  .trim()
+  .regex(/^[01],[0-4],(1[0-2]|[1-9]),[1-7],(2[0-3]|1?\d),-?\d{1,4}$/, { message: issue('timeRule') });
 
 // Die Firmware speichert Minuten: ein „-" bedeutet +12 h. Eine Uhrzeit mit Minus oder ein Versatz ab 12 h käme deshalb
 // als anderer Wert zurück und würde beim Prüfen als Abweichung gelten.
@@ -125,7 +161,20 @@ const setting = (
   schema: z.ZodType<string>,
   order: number,
   extra: Partial<SettingDef> = {},
-): SettingDef => ({ key, group, kind, schema, order, restarts: false, writeOnly: false, batch: true, ...extra });
+): SettingDef => ({
+  key,
+  group,
+  kind,
+  schema,
+  order,
+  restarts: false,
+  writeOnly: false,
+  batch: true,
+  appliesTo: [],
+  perDevice: false,
+  hint: false,
+  ...extra,
+});
 
 export const SETTINGS: readonly SettingDef[] = [
   setting('DeviceName', 'names', 'text', text(32), 10, { batch: false }),
@@ -151,11 +200,27 @@ export const SETTINGS: readonly SettingDef[] = [
     70,
   ),
   setting('NtpServer1', 'time', 'text', text(64), 71),
-  setting('TelePeriod', 'telemetry', 'int', int(10, 3600), 80),
-  setting('MqttHost', 'mqtt', 'text', noSemicolon(text(64)), 90, { restarts: true }),
-  setting('MqttPort', 'mqtt', 'int', int(1, 65535), 91, { restarts: true }),
-  setting('MqttUser', 'mqtt', 'text', noSemicolon(text(32)), 92, { restarts: true }),
-  setting('MqttPassword', 'mqtt', 'text', noSemicolon(text(32)), 93, { restarts: true, writeOnly: true }),
+  setting('TelePeriod', 'telemetry', 'int', int(10, 3600), 80, { hint: true }),
+  setting('TimeStd', 'time', 'timeRule', timeRule, 72),
+  setting('TimeDst', 'time', 'timeRule', timeRule, 73),
+  setting('PowerDelta', 'energy', 'int', int(0, 32000), 82, { appliesTo: ['energy'], hint: true, command: 'PowerDelta1' }),
+  setting('EnergyRes', 'energy', 'int', int(0, 5), 83, { appliesTo: ['energy'] }),
+  setting('WattRes', 'energy', 'int', int(0, 3), 84, { appliesTo: ['energy'] }),
+  setting('Fade', 'light', 'bool', bool, 85, { appliesTo: ['light'] }),
+  setting('Speed', 'light', 'int', int(1, 40), 86, { appliesTo: ['light'] }),
+  setting('DimmerRange', 'light', 'dimmerRange', dimmerRange, 87, { appliesTo: ['light'], hint: true }),
+  setting('SetOption20', 'light', 'bool', bool, 88, { appliesTo: ['light'], hint: true }),
+  setting('SetOption0', 'relay', 'bool', bool, 89, { appliesTo: ['relay'], hint: true }),
+  setting('Interlock', 'relay', 'bool', bool, 90, { appliesTo: ['multiRelay'], hint: true }),
+  setting('TempRes', 'climate', 'int', int(0, 3), 91, { appliesTo: ['climate'] }),
+  setting('HumRes', 'climate', 'int', int(0, 3), 92, { appliesTo: ['climate'] }),
+  setting('SetOption8', 'climate', 'bool', bool, 93, { appliesTo: ['climate'], hint: true }),
+  setting('TempOffset', 'climate', 'decimal', decimal(12.6), 94, { appliesTo: ['climate'], batch: false, perDevice: true }),
+  setting('HumOffset', 'climate', 'decimal', decimal(10), 95, { appliesTo: ['climate'], batch: false, perDevice: true }),
+  setting('MqttHost', 'mqtt', 'text', noSemicolon(text(64)), 96, { restarts: true }),
+  setting('MqttPort', 'mqtt', 'int', int(1, 65535), 97, { restarts: true }),
+  setting('MqttUser', 'mqtt', 'text', noSemicolon(text(32)), 98, { restarts: true }),
+  setting('MqttPassword', 'mqtt', 'text', noSemicolon(text(32)), 99, { restarts: true, writeOnly: true }),
   ...[1, 2, 3].map((n) => setting(`Rule${n}`, 'rules', 'rule', ruleText, 100 + n, { batch: false })),
   ...[1, 2, 3].map((n) => setting(`Rule${n}Enabled`, 'rules', 'bool', bool, 110 + n, { batch: false, command: `Rule${n}` })),
   ...Array.from({ length: 16 }, (_, i) => setting(`Timer${i + 1}`, 'timers', 'timer', timerValue, 201 + i, { batch: false })),
@@ -166,6 +231,10 @@ const BY_KEY = new Map(SETTINGS.map((s) => [s.key, s]));
 
 export function settingDef(key: string): SettingDef | undefined {
   return BY_KEY.get(key);
+}
+
+export function settingApplies(def: SettingDef, capabilities: readonly Capability[]): boolean {
+  return def.appliesTo.length === 0 || def.appliesTo.some((c) => capabilities.includes(c));
 }
 
 export function commandFor(def: SettingDef, value: string): string {

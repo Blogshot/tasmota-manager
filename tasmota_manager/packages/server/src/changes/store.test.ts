@@ -29,6 +29,7 @@ describe('PendingStore', () => {
     expect(store.stage({ deviceIds: [A, B], settings: { PowerOnState: '1', Latitude: '48.1' }, source: 'form' })).toEqual({
       staged: 4,
       skipped: 0,
+      incompatible: 0,
     });
     const [bad, keller] = store.list();
     expect(bad?.deviceName).toBe('Bad');
@@ -69,7 +70,7 @@ describe('PendingStore', () => {
 
   it('verwirft Werte gleich dem aktuellen Gerätewert und entfernt dafür bestehende Einträge', () => {
     store.stage({ deviceIds: [A], settings: { PowerOnState: '1' }, source: 'form' });
-    expect(store.stage({ deviceIds: [A], settings: { PowerOnState: '3' }, source: 'form' })).toEqual({ staged: 0, skipped: 1 });
+    expect(store.stage({ deviceIds: [A], settings: { PowerOnState: '3' }, source: 'form' })).toEqual({ staged: 0, skipped: 1, incompatible: 0 });
     expect(store.count()).toBe(0);
   });
 

@@ -29,7 +29,7 @@ describe('Detail-Tabs', () => {
   beforeEach(() => {
     vi.mocked(api.devices).mockResolvedValue([device]);
     vi.mocked(api.device).mockResolvedValue({ ...device, status: { Status: { PowerOnState: 3 } } });
-    vi.mocked(api.stage).mockResolvedValue({ staged: 1, skipped: 0 });
+    vi.mocked(api.stage).mockResolvedValue({ staged: 1, skipped: 0, incompatible: 0 });
     vi.mocked(api.rules).mockResolvedValue([
       { index: 1, enabled: false, text: 'ON x DO y ENDON', length: 15, free: 496 },
       { index: 2, enabled: false, text: '', length: 0, free: 511 },

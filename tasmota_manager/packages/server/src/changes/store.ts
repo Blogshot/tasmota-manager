@@ -117,7 +117,7 @@ export class PendingStore extends EventEmitter<{ changed: [number] }> {
       }
     });
     this.changed();
-    return { staged, skipped };
+    return { staged, skipped, incompatible: 0 };
   }
 
   list(): PendingDevice[] {

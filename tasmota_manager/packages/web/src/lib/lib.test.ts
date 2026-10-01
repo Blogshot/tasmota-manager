@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import type { Device, JobView, StatusResponse } from '@tm/shared';
 import { describe, expect, it } from 'vitest';
 import { makeDevice } from '@/test/fixtures';
+import { SUGGESTIONS } from '@/test/fixtures';
 import { formatMessage } from './i18n';
 import { de, en } from './messages';
 import { applyMessage } from './live';
@@ -30,10 +31,10 @@ describe('applyMessage', () => {
 
   it('pflegt MQTT- und Scan-Status', () => {
     const qc = new QueryClient();
-    qc.setQueryData<StatusResponse>(['status'], { mqtt: 'connected', version: 'x', scanning: false, haLocation: null });
+    qc.setQueryData<StatusResponse>(['status'], { mqtt: 'connected', version: 'x', scanning: false, haLocation: null, haSuggestions: SUGGESTIONS });
     applyMessage(qc, { type: 'mqtt:status', status: 'disconnected' });
     applyMessage(qc, { type: 'scan:progress', scanned: 16, total: 254, found: 1 });
-    expect(qc.getQueryData(['status'])).toEqual({ mqtt: 'disconnected', version: 'x', scanning: true, haLocation: null });
+    expect(qc.getQueryData(['status'])).toEqual({ mqtt: 'disconnected', version: 'x', scanning: true, haLocation: null, haSuggestions: SUGGESTIONS });
     expect(qc.getQueryData(['scan'])).toMatchObject({ scanned: 16, total: 254 });
     applyMessage(qc, { type: 'scan:done', found: 1 });
     expect(qc.getQueryData<StatusResponse>(['status'])?.scanning).toBe(false);

@@ -16,6 +16,7 @@ const devices = [
     ha: {
       deviceId: 'dev1',
       areaName: 'Bad',
+      nameByUser: null,
       entities: [{ entityId: 'sensor.bad_temp', name: 'Temperatur Bad' }],
       automations: [
         { id: '1700000000', entityId: 'automation.licht_bad', name: 'Licht Bad' },
@@ -48,7 +49,7 @@ describe('DeviceTable', () => {
     const names = ['Schalter', 'Leistung', 'Spannung', 'Strom', 'Energie heute'];
     const device = makeDevice({
       id: 'C',
-      ha: { deviceId: 'dev3', areaName: null, entities: names.map((name, i) => ({ entityId: `sensor.e${i}`, name })), automations: [] },
+      ha: { deviceId: 'dev3', areaName: null, nameByUser: null, entities: names.map((name, i) => ({ entityId: `sensor.e${i}`, name })), automations: [] },
     });
     const onOpen = vi.fn();
     const user = userEvent.setup();
@@ -62,7 +63,7 @@ describe('DeviceTable', () => {
   });
 
   it('merkt den Namensvorschlag per Klick vor, ohne die Detailansicht zu öffnen', async () => {
-    vi.mocked(api.stageSuggestions).mockResolvedValue({ staged: 2, skipped: 0 });
+    vi.mocked(api.stageSuggestions).mockResolvedValue({ staged: 2, skipped: 0, incompatible: 0 });
     const user = userEvent.setup();
     const onOpen = renderTable();
     await user.click(screen.getByRole('button', { name: 'Klima Bad' }));

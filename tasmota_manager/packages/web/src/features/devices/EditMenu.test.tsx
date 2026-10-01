@@ -15,8 +15,8 @@ const devices = [makeDevice({ id: 'A', name: 'Keller' }), makeDevice({ id: 'B', 
 
 describe('EditMenu', () => {
   beforeEach(() => {
-    vi.mocked(api.stage).mockResolvedValue({ staged: 2, skipped: 0 });
-    vi.mocked(api.stageSuggestions).mockResolvedValue({ staged: 0, skipped: 0 });
+    vi.mocked(api.stage).mockResolvedValue({ staged: 2, skipped: 0, incompatible: 0 });
+    vi.mocked(api.stageSuggestions).mockResolvedValue({ staged: 0, skipped: 0, incompatible: 0 });
   });
 
   it('merkt Einstellungen aus dem Formular für alle ausgewählten Geräte vor', async () => {

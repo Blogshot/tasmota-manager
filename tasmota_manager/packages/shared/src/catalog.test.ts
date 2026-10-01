@@ -10,6 +10,7 @@ import {
   readFromStatus,
   renderPlaceholders,
   resolveLanguage,
+  settingApplies,
   settingDef,
 } from './index';
 
@@ -180,5 +181,40 @@ describe('Requests', () => {
     expect(resolveLanguage('auto', 'NL')).toBe('nl');
     expect(resolveLanguage('auto', 'ja')).toBe('en');
     expect(resolveLanguage('auto', null)).toBe('en');
+  });
+});
+
+describe('gerätespezifische Einstellungen', () => {
+  it('ordnet Einstellungen Fähigkeiten zu', () => {
+    const powerDelta = settingDef('PowerDelta');
+    expect(powerDelta?.appliesTo).toEqual(['energy']);
+    expect(settingApplies(powerDelta!, ['energy', 'relay'])).toBe(true);
+    expect(settingApplies(powerDelta!, ['light'])).toBe(false);
+    expect(settingApplies(powerDelta!, [])).toBe(false);
+    // Ohne appliesTo gilt eine Einstellung für jedes Gerät, auch ohne bekannte Fähigkeiten.
+    expect(settingApplies(settingDef('LedState')!, [])).toBe(true);
+    expect(settingDef('Interlock')?.appliesTo).toEqual(['multiRelay']);
+    expect(settingDef('TempOffset')).toMatchObject({ perDevice: true, batch: false });
+  });
+
+  it('schreibt PowerDelta als PowerDelta1', () => {
+    expect(commandFor(settingDef('PowerDelta')!, '110')).toBe('PowerDelta1 110');
+  });
+
+  it('prüft DimmerRange und Zeitregeln', () => {
+    const range = settingDef('DimmerRange')!.schema;
+    expect(range.safeParse('10,100').success).toBe(true);
+    expect(range.safeParse('100,10').error?.issues[0]?.message).toBe('invalid.dimmerRange');
+    expect(range.safeParse('10').success).toBe(false);
+    const rule = settingDef('TimeStd')!.schema;
+    expect(rule.safeParse('0,0,10,1,3,60').success).toBe(true);
+    expect(rule.safeParse('1,1,4,1,3,600').success).toBe(true);
+    expect(rule.safeParse('0,0,13,1,3,60').error?.issues[0]?.message).toBe('invalid.timeRule');
+  });
+
+  it('prüft Kalibrierwerte als Dezimalzahl', () => {
+    const offset = settingDef('TempOffset')!.schema;
+    expect(offset.safeParse('-1.5').success).toBe(true);
+    expect(offset.safeParse('13').error?.issues[0]?.message).toBe('invalid.maxAbs|12.6');
   });
 });

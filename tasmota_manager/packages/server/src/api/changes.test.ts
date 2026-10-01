@@ -21,7 +21,7 @@ describe('Änderungs-API', () => {
     const { app } = await setupApp();
     await addFake(app);
     const res = await stage(app, { deviceIds: [MAC], settings: { PowerOnState: '1', MqttPassword: 'geheim' }, source: 'form' });
-    expect(res.json()).toEqual({ staged: 2, skipped: 0 });
+    expect(res.json()).toEqual({ staged: 2, skipped: 0, incompatible: 0 });
     const list = (await app.inject('/api/changes')).json<PendingDevice[]>();
     expect(list[0]?.changes.map((c) => [c.key, c.before, c.value])).toEqual([
       ['PowerOnState', '3', '1'],
@@ -59,7 +59,7 @@ describe('Änderungs-API', () => {
     let device = (await app.inject('/api/devices')).json<Device[]>()[0];
     expect(device).toMatchObject({ nameSuggestion: 'Climate', pendingCount: 0, pendingName: null, setOption4: false, ha: null });
     const res = await app.inject({ method: 'POST', url: '/api/changes/suggestions', payload: { deviceIds: [MAC] } });
-    expect(res.json()).toEqual({ staged: 2, skipped: 0 });
+    expect(res.json()).toEqual({ staged: 2, skipped: 0, incompatible: 0 });
     device = (await app.inject(`/api/devices/${MAC}`)).json<Device>();
     expect(device).toMatchObject({ nameSuggestion: null, pendingCount: 2, pendingName: 'Climate' });
   });
@@ -83,7 +83,7 @@ describe('Änderungs-API', () => {
     const dismissed = await app.inject({ method: 'PATCH', url: `/api/devices/${MAC}`, payload: { suggestionDismissed: true } });
     expect(dismissed.json()).toMatchObject({ nameSuggestion: null, suggestionDismissed: true });
     const res = await app.inject({ method: 'POST', url: '/api/changes/suggestions', payload: { deviceIds: [MAC] } });
-    expect(res.json()).toEqual({ staged: 0, skipped: 0 });
+    expect(res.json()).toEqual({ staged: 0, skipped: 0, incompatible: 0 });
     const restored = await app.inject({ method: 'PATCH', url: `/api/devices/${MAC}`, payload: { suggestionDismissed: false } });
     expect(restored.json()).toMatchObject({ nameSuggestion: 'Climate', suggestionDismissed: false });
   });

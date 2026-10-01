@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
-import { makeDevice } from '@/test/fixtures';
+import { SUGGESTIONS, makeDevice } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
 import { DevicesPage } from './DevicesPage';
 
@@ -24,7 +24,7 @@ describe('DevicesPage', () => {
       makeDevice({ id: 'B', name: 'Garage', online: false, channels: [] }),
       makeDevice({ id: 'C', name: 'Steckdose', channels: ['http'] }),
     ]);
-    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation: null });
+    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation: null, haSuggestions: SUGGESTIONS });
   });
 
   it('zeigt alle Geräte', async () => {

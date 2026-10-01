@@ -1,4 +1,6 @@
-import type { Device } from '@tm/shared';
+import type { Device, HaSuggestions } from '@tm/shared';
+
+export const SUGGESTIONS: HaSuggestions = { timezone: null, ntpServer: 'pool.ntp.org', mqtt: null, mqttUser: null, fahrenheit: null };
 
 export function makeDevice(partial: Partial<Device> = {}): Device {
   return {
@@ -23,6 +25,7 @@ export function makeDevice(partial: Partial<Device> = {}): Device {
     tags: [],
     setOption4: false,
     power: [],
+    capabilities: [],
     ha: null,
     nameSuggestion: null,
     suggestionDismissed: false,

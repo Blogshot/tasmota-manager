@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
+import { SUGGESTIONS } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
 import { LocationTools } from './LocationTools';
 
@@ -14,7 +15,7 @@ vi.mock('./MapPicker', () => ({
 }));
 
 const status = (haLocation: { latitude: number; longitude: number } | null) =>
-  vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation });
+  vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation, haSuggestions: SUGGESTIONS });
 
 describe('LocationTools', () => {
   it('schlägt den Standort aus Home Assistant vor und übernimmt ihn per Klick', async () => {

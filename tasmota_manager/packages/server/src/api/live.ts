@@ -8,6 +8,7 @@ export function registerLiveRoutes(app: FastifyInstance, deps: AppDeps): void {
     version: deps.version,
     scanning: deps.scanner.running,
     haLocation: deps.haLocation?.() ?? null,
+    haSuggestions: { timezone: null, ntpServer: 'pool.ntp.org', mqtt: null, mqttUser: null, fahrenheit: null },
   }));
 
   app.post('/api/scan', async (_req, reply) => {

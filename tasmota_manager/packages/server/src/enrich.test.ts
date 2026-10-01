@@ -15,7 +15,7 @@ describe('DeviceEnricher', () => {
       { statusJson: { StatusSTS: { POWER: 'ON' } }, sensorsJson: { StatusSNS: { AM2301: { Temperature: 21 } } } },
     );
     registry.upsert({ mac: 'AABBCC000002', name: 'Tasmota' }, { statusJson: { StatusSTS: { POWER: 'ON' } } });
-    const link: HaLink = { deviceId: 'dev1', areaName: 'Bad', entities: [], automations: [] };
+    const link: HaLink = { deviceId: 'dev1', areaName: 'Bad', nameByUser: null, entities: [], automations: [] };
     const enricher = new DeviceEnricher(registry, store, { link: (mac) => (mac === 'AABBCC000001' ? link : null) }, () => 'de');
 
     store.stage({ deviceIds: ['AABBCC000002'], settings: { DeviceName: 'Flur', TelePeriod: '60' }, source: 'form' });

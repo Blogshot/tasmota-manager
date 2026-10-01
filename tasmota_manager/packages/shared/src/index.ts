@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import type { Timer } from './catalog';
+import { CAPABILITIES, type Timer } from './catalog';
 
 export * from './catalog';
 
 export const ChannelSchema = z.enum(['mqtt', 'http']);
 export type Channel = z.infer<typeof ChannelSchema>;
+export const CapabilitySchema = z.enum(CAPABILITIES);
 
 export const ErrorCodeSchema = z.enum([
   'offline',
@@ -24,6 +25,8 @@ export type MqttStatus = z.infer<typeof MqttStatusSchema>;
 export const HaLinkSchema = z.object({
   deviceId: z.string(),
   areaName: z.string().nullable(),
+  /** In HA vergebener Gerätename (name_by_user); null, wenn nicht umbenannt. */
+  nameByUser: z.string().nullable(),
   entities: z.array(z.object({ entityId: z.string(), name: z.string() })),
   automations: z.array(z.object({ id: z.string().nullable(), entityId: z.string(), name: z.string() })),
 });
@@ -52,6 +55,7 @@ export const DeviceSchema = z.object({
   setOption4: z.boolean(),
   /** Schaltzustand je Relais bzw. Licht (Index 0 = POWER/POWER1); leer, wenn das Gerät nichts schaltet. */
   power: z.array(z.boolean()),
+  capabilities: z.array(CapabilitySchema),
   ha: HaLinkSchema.nullable(),
   nameSuggestion: z.string().nullable(),
   suggestionDismissed: z.boolean(),
@@ -148,12 +152,26 @@ export interface HaLocation {
   longitude: number;
 }
 
+/** Vorschläge aus Home Assistant für das Einstellungsformular; null, wenn die Quelle fehlt. */
+export interface HaSuggestions {
+  /** HA-Zeitzone und daraus berechnete Tasmota-Werte. timeStd/timeDst null bei Zonen ohne Sommerzeit. */
+  timezone: { zone: string; timezone: string; timeStd: string | null; timeDst: string | null } | null;
+  ntpServer: string;
+  /** Broker auf dem HA-Host, mit dessen LAN-Adresse. */
+  mqtt: { host: string; port: number } | null;
+  /** Häufigster MqttUser der eigenen Geräte (mindestens zwei). */
+  mqttUser: string | null;
+  /** true bei °F in HA, false bei °C, null ohne HA. */
+  fahrenheit: boolean | null;
+}
+
 export interface StatusResponse {
   mqtt: MqttStatus;
   version: string;
   scanning: boolean;
   /** null, wenn kein HA-Zugriff besteht oder HA keinen Standort kennt */
   haLocation: HaLocation | null;
+  haSuggestions: HaSuggestions;
 }
 
 export interface ScanProgress {
@@ -216,6 +234,8 @@ export type StageRequest = z.infer<typeof StageRequestSchema>;
 export interface StageResult {
   staged: number;
   skipped: number;
+  /** Geräte, bei denen mindestens eine Einstellung nicht zum Gerätetyp passte und übersprungen wurde. */
+  incompatible: number;
 }
 
 export const DeviceIdsRequestSchema = z.object({ deviceIds: z.array(z.string().min(1)).min(1).max(500) });
@@ -251,4 +271,20 @@ export interface RuleState {
 export interface TimersState {
   enabled: boolean;
   timers: Timer[];
+}
+
+export const FastRuleRequestSchema = z.object({ deviceIds: z.array(z.string().min(1)).min(1).max(500) });
+
+/** Vorschau einer Sofort-Regel pro Gerät (siehe Server fastRule.ts). */
+export interface FastRulePreview {
+  deviceId: string;
+  deviceName: string;
+  /** Regeltext oder null, wenn keine Regel möglich ist. */
+  rule: string | null;
+  /** Freier Rule-Slot (1–3) oder null. */
+  slot: number | null;
+  /** Sensorblöcke in der Regel bzw. weggelassen (Platz, ENERGY, Chip-Temperatur). */
+  included: string[];
+  omitted: string[];
+  reason: 'ok' | 'noSensors' | 'noSlot' | 'unreachable';
 }

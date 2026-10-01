@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
+import { SUGGESTIONS } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
 import { SettingsPage } from './SettingsPage';
 
@@ -23,7 +24,7 @@ const SETTINGS = {
 describe('SettingsPage', () => {
   beforeEach(() => {
     vi.mocked(api.settings).mockResolvedValue(SETTINGS);
-    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation: null });
+    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation: null, haSuggestions: SUGGESTIONS });
     vi.mocked(api.updateSettings).mockImplementation(async (patch) => ({ ...SETTINGS, ...patch, hasGlobalPassword: false }));
   });
 

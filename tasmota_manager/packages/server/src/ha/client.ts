@@ -134,6 +134,7 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
       next.set(mac, {
         deviceId: device.id,
         areaName: device.area_id ? (areaNames.get(device.area_id) ?? null) : null,
+        nameByUser: null,
         entities: entities.filter((e) => e.device_id === device.id && isPrimary(e)).map((e) => ({ entityId: e.entity_id, name: entityName(e) })),
         automations: automationIds.map((entityId) => {
           const entity = byEntityId.get(entityId);

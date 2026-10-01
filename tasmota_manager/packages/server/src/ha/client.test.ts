@@ -50,6 +50,7 @@ describe('HaClient', () => {
     expect(link).toEqual({
       deviceId: 'dev1',
       areaName: 'Bad',
+      nameByUser: null,
       entities: [
         { entityId: 'switch.bad', name: 'Bad Schalter' },
         { entityId: 'sensor.bad_temp', name: 'Temperatur Bad' },
