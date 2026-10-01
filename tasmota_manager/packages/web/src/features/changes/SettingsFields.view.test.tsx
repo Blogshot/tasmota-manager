@@ -56,4 +56,10 @@ describe('SettingsFields nach Gerätetyp', () => {
     await user.click(screen.getByRole('button', { name: 'Regel vorschlagen' }));
     expect(onFastRule).toHaveBeenCalled();
   });
+
+  it('weist auch bei einem einzelnen Gerät mit unbekanntem Typ darauf hin', () => {
+    renderWithProviders(<Harness devices={[makeDevice({ id: 'U', capabilities: [] })]} />);
+    expect(screen.getByText(/Der Gerätetyp ist noch nicht bekannt/)).toBeInTheDocument();
+    expect(screen.queryByText(/Geräte mit unbekanntem Typ/)).not.toBeInTheDocument();
+  });
 });

@@ -264,6 +264,7 @@ export const nl: Record<MessageKey, string> = {
   'validation.timeRule': 'Formaat: halfrond,week,maand,dag,uur,verschuiving',
   'edit.appliesTo': 'geldt voor {count} van {total}',
   'edit.unknownType': '{count} apparaten van onbekend type worden overgeslagen bij apparaatspecifieke instellingen.',
+  'edit.unknownTypeSingle': 'Het apparaattype is nog niet bekend; apparaatspecifieke instellingen verschijnen zodra de status van het apparaat is gelezen.',
   'devices.stagedIncompatible': '{staged} wijzigingen klaargezet, {incompatible} apparaten overgeslagen (past niet bij het apparaattype)',
   'telePeriod.dbWarning': 'Korte intervallen vullen de database van Home Assistant.',
   'telePeriod.powerDelta': 'Gebruik voor snelle vermogenswaarden liever PowerDelta.',

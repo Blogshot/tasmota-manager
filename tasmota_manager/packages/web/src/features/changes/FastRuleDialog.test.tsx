@@ -25,4 +25,11 @@ describe('FastRuleDialog', () => {
     await waitFor(() => expect(api.fastRuleStage).toHaveBeenCalledWith(['A']));
     expect(onStaged).toHaveBeenCalled();
   });
+
+  it('zeigt einen Fehler, wenn die Vorschau fehlschlägt', async () => {
+    vi.mocked(api.fastRulePreview).mockRejectedValue(new Error('kaputt'));
+    renderWithProviders(<FastRuleDialog deviceIds={['A']} open onOpenChange={vi.fn()} onStaged={vi.fn()} />);
+    expect(await screen.findByText(/Fehler: kaputt/)).toBeInTheDocument();
+    expect(screen.queryByText('Regeln werden erstellt …')).not.toBeInTheDocument();
+  });
 });

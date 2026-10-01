@@ -41,6 +41,9 @@ export function SettingsFields({ defs, devices, values, errors, onChange, onFast
       {devices.length > 1 && unknownType > 0 && (
         <p className="text-xs text-amber-700 dark:text-amber-300">{t('edit.unknownType', { count: unknownType })}</p>
       )}
+      {devices.length === 1 && unknownType === 1 && (
+        <p className="text-xs text-amber-700 dark:text-amber-300">{t('edit.unknownTypeSingle')}</p>
+      )}
       {groups.map((group) => (
         <fieldset key={group} className="space-y-3">
           <legend className="text-sm font-medium">{t(`group.${group}` as MessageKey)}</legend>
@@ -153,7 +156,9 @@ export function collectSettings(
   for (const def of defs) {
     const raw = values[def.key];
     if (raw === undefined || raw.trim() === '') continue;
-    const parsed = def.schema.safeParse(raw);
+    // Deutsche Eingabe mit Dezimalkomma; das Schema verlangt den Punkt.
+    const input = def.kind === 'decimal' || def.kind === 'coord' ? raw.replace(',', '.') : raw;
+    const parsed = def.schema.safeParse(input);
     if (parsed.success) settings[def.key] = parsed.data;
     else errors[def.key] = parsed.error.issues[0]?.message ?? 'invalid.invalid';
   }

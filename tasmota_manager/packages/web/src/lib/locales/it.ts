@@ -264,6 +264,7 @@ export const it: Record<MessageKey, string> = {
   'validation.timeRule': 'Formato: emisfero,settimana,mese,giorno,ora,scostamento',
   'edit.appliesTo': 'vale per {count} su {total}',
   'edit.unknownType': '{count} dispositivi di tipo sconosciuto vengono saltati per le impostazioni specifiche del tipo di dispositivo.',
+  'edit.unknownTypeSingle': 'Il tipo di dispositivo non è ancora noto; le impostazioni specifiche del dispositivo compariranno dopo la lettura del suo stato.',
   'devices.stagedIncompatible': '{staged} modifiche messe in sospeso, {incompatible} dispositivi saltati (non corrisponde al tipo di dispositivo)',
   'telePeriod.dbWarning': 'Intervalli brevi riempiono il database di Home Assistant.',
   'telePeriod.powerDelta': 'Per valori di potenza rapidi è meglio usare PowerDelta.',

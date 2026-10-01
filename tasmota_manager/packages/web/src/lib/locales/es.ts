@@ -264,6 +264,7 @@ export const es: Record<MessageKey, string> = {
   'validation.timeRule': 'Formato: hemisferio,semana,mes,día,hora,desfase',
   'edit.appliesTo': 'se aplica a {count} de {total}',
   'edit.unknownType': '{count} dispositivos de tipo desconocido se omiten en los ajustes específicos del tipo de dispositivo.',
+  'edit.unknownTypeSingle': 'El tipo de dispositivo aún no se conoce; los ajustes específicos del dispositivo aparecerán cuando se haya leído su estado.',
   'devices.stagedIncompatible': '{staged} cambios pendientes añadidos, {incompatible} dispositivos omitidos (no coincide con el tipo de dispositivo)',
   'telePeriod.dbWarning': 'Los intervalos cortos llenan la base de datos de Home Assistant.',
   'telePeriod.powerDelta': 'Para lecturas rápidas de potencia es mejor usar PowerDelta.',

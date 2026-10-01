@@ -9,4 +9,11 @@ describe('collectSettings', () => {
     expect(settings).toEqual({ PowerOnState: '1', LedPower: '0' });
     expect(Object.keys(errors)).toEqual(['TelePeriod']);
   });
+
+  it('akzeptiert Dezimalkomma bei Kalibrier- und Koordinatenwerten', () => {
+    const defs = SETTINGS.filter((d) => ['TempOffset', 'Latitude'].includes(d.key));
+    const { settings, errors } = collectSettings(defs, { TempOffset: '-1,5', Latitude: '52,5200' });
+    expect(errors).toEqual({});
+    expect(settings).toEqual({ TempOffset: '-1.5', Latitude: '52.5200' });
+  });
 });

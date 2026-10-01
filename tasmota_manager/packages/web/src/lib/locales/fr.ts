@@ -264,6 +264,7 @@ export const fr: Record<MessageKey, string> = {
   'validation.timeRule': 'Format : hémisphère,semaine,mois,jour,heure,décalage',
   'edit.appliesTo': 's’applique à {count} sur {total}',
   'edit.unknownType': '{count} appareils de type inconnu sont ignorés pour les paramètres propres à un type d’appareil.',
+  'edit.unknownTypeSingle': 'Le type d’appareil n’est pas encore connu ; les paramètres propres à l’appareil apparaîtront une fois l’état de l’appareil lu.',
   'devices.stagedIncompatible': '{staged} modifications mises en attente, {incompatible} appareils ignorés (ne correspond pas au type d’appareil)',
   'telePeriod.dbWarning': 'Des intervalles courts remplissent la base de données de Home Assistant.',
   'telePeriod.powerDelta': 'Pour des valeurs de puissance rapides, utilisez plutôt PowerDelta.',

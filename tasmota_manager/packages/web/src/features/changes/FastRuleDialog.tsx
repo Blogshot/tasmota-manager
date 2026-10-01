@@ -42,7 +42,9 @@ export function FastRuleDialog({ deviceIds, open, onOpenChange, onStaged }: Prop
           <DialogTitle>{t('fastRule.title')}</DialogTitle>
           <DialogDescription>{t('fastRule.description')}</DialogDescription>
         </DialogHeader>
-        {!preview.data ? (
+        {preview.isError ? (
+          <p className="text-sm text-destructive">{t('common.error', { message: errorText(t, preview.error) })}</p>
+        ) : !preview.data ? (
           <p className="text-sm text-muted-foreground">{t('fastRule.loading')}</p>
         ) : (
           <ul className="space-y-3 text-sm">
