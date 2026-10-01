@@ -3,7 +3,7 @@ import type { networkInterfaces } from 'node:os';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { detectHostCidrs, loadConfig } from './config';
+import { detectHostCidrs, detectHostIp, loadConfig } from './config';
 
 function dataDir(options?: object): string {
   const dir = mkdtempSync(join(tmpdir(), 'tm-config-'));
@@ -39,10 +39,10 @@ describe('loadConfig', () => {
 
   it('holt MQTT-Daten vom Supervisor', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ result: 'ok', data: { host: 'core-mosquitto', port: 1883, ssl: false, username: 'addons', password: 'x' } })),
+      new Response(JSON.stringify({ result: 'ok', data: { host: 'core-mosquitto', port: 1883, ssl: false, username: 'addons', password: 'x', onHa: true } })),
     );
     const config = await loadConfig({ TM_DATA_DIR: dataDir(), SUPERVISOR_TOKEN: 'token' }, fetchFn);
-    expect(config.mqtt).toEqual({ url: 'mqtt://core-mosquitto:1883', username: 'addons', password: 'x' });
+    expect(config.mqtt).toEqual({ url: 'mqtt://core-mosquitto:1883', username: 'addons', password: 'x', onHa: true });
     expect(fetchFn).toHaveBeenCalledWith('http://supervisor/services/mqtt', expect.objectContaining({ headers: { Authorization: 'Bearer token' } }));
   });
 
@@ -79,5 +79,20 @@ describe('detectHostCidrs', () => {
       docker0: [{ address: '172.17.0.1', netmask: '255.255.0.0', family: 'IPv4', mac: '', internal: false, cidr: '172.17.0.1/16' }],
     } as ReturnType<typeof networkInterfaces>;
     expect(detectHostCidrs(ifaces)).toEqual(['192.168.1.0/24', '10.1.5.0/24']);
+  });
+});
+
+describe('detectHostIp', () => {
+  it('liefert die erste LAN-Adresse ohne Docker- und Loopback-Schnittstellen', () => {
+    const ifaces = {
+      lo: [{ address: '127.0.0.1', netmask: '255.0.0.0', family: 'IPv4', mac: '', internal: true, cidr: '127.0.0.1/8' }],
+      hassio: [{ address: '172.30.32.1', netmask: '255.255.254.0', family: 'IPv4', mac: '', internal: false, cidr: '172.30.32.1/23' }],
+      enp3s0: [
+        { address: 'fe80::1', netmask: 'ffff::', family: 'IPv6', mac: '', internal: false, cidr: 'fe80::1/64', scopeid: 2 },
+        { address: '192.168.1.10', netmask: '255.255.255.0', family: 'IPv4', mac: '', internal: false, cidr: '192.168.1.10/24' },
+      ],
+    } as ReturnType<typeof networkInterfaces>;
+    expect(detectHostIp(ifaces)).toBe('192.168.1.10');
+    expect(detectHostIp({} as ReturnType<typeof networkInterfaces>)).toBeNull();
   });
 });

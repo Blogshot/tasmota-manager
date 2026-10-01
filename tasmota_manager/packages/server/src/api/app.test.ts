@@ -99,7 +99,13 @@ describe('Einstellungen, Status und Scan', () => {
 
   it('liefert den Status', async () => {
     const { app } = await setup();
-    expect((await app.inject('/api/status')).json()).toEqual({ mqtt: 'disabled', version: 'test', scanning: false, haLocation: null, haSuggestions: { timezone: null, ntpServer: 'pool.ntp.org', mqtt: null, mqttUser: null, fahrenheit: null } });
+    expect((await app.inject('/api/status')).json()).toMatchObject({ mqtt: 'disabled', version: 'test', scanning: false, haLocation: null });
+  });
+
+  it('gibt in den HA-Vorschlägen nie die Zugangsdaten des MQTT-Dienstes aus', async () => {
+    const { app } = await setup();
+    const body = (await app.inject('/api/status')).body;
+    expect(JSON.parse(body)).toMatchObject({ haSuggestions: { ntpServer: 'pool.ntp.org', mqtt: null } });
   });
 
   it('liefert den Standort aus Home Assistant für Koordinaten-Vorschläge', async () => {

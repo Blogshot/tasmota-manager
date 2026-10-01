@@ -43,4 +43,14 @@ describe('DeviceEnricher', () => {
     registry.setSuggestionDismissed('AABBCC000001', false);
     expect(enricher.one('AABBCC000001')?.nameSuggestion).toBe('Schalter');
   });
+
+  it('schlägt den in HA vergebenen Namen vor, auch für eigene Namen', () => {
+    const db = testDb();
+    const registry = new DeviceRegistry(db);
+    const store = new PendingStore(db, registry);
+    registry.upsert({ mac: 'AABBCC000001', name: 'Keller' }, { statusJson: { StatusSTS: { POWER: 'ON' } } });
+    const link: HaLink = { deviceId: 'dev1', areaName: null, nameByUser: 'Kellerlicht', entities: [], automations: [] };
+    const enricher = new DeviceEnricher(registry, store, { link: () => link }, () => 'de');
+    expect(enricher.one('AABBCC000001')?.nameSuggestion).toBe('Kellerlicht');
+  });
 });

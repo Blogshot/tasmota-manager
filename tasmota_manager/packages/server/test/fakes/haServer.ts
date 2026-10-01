@@ -85,7 +85,7 @@ export class FakeHa {
           ok(this.data.areas);
           break;
         case 'get_config':
-          ok({ language: this.data.language ?? 'en', ...this.data.location });
+          ok({ language: this.data.language ?? 'en', ...this.data.location, time_zone: 'Europe/Berlin', country: 'DE', unit_system: { temperature: '°C' } });
           break;
         case 'search/related':
           if (this.failRelated) break;

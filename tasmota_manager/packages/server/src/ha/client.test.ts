@@ -79,6 +79,7 @@ describe('HaClient', () => {
     await waitFor(() => client?.link('AABBCC112233'));
     expect(client.language).toBe('de');
     expect(client.location).toEqual({ latitude: 52.52, longitude: 13.405 });
+    expect(client.config).toEqual({ timeZone: 'Europe/Berlin', country: 'DE', fahrenheit: false });
   });
 
   it('lädt bei Registry-Events neu und meldet Änderungen', async () => {

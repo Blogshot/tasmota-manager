@@ -39,7 +39,8 @@ export class DeviceEnricher {
     );
     return devices.map((d) => {
       const pendingName = pendingNames.get(d.id) ?? null;
-      const suggestion = suggestions.get(d.id) ?? null;
+      const haName = d.suggestionDismissed ? null : (links.get(d.id)?.nameByUser ?? null);
+      const suggestion = haName ?? suggestions.get(d.id) ?? null;
       return {
         ...d,
         capabilities: capabilitiesOf(raw.get(d.id)?.statusJson, raw.get(d.id)?.sensorsJson, d.module),

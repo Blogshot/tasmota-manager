@@ -69,6 +69,8 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
   ready = false;
   /** Systemsprache von Home Assistant (z. B. "de"); null, solange sie nicht gelesen wurde. */
   language: string | null = null;
+  /** Zeitzone, Land und Einheit aus der HA-Konfiguration; null, solange unbekannt. */
+  config: { timeZone: string | null; country: string | null; fahrenheit: boolean | null } = { timeZone: null, country: null, fahrenheit: null };
   /** Standort des Heims aus der HA-Konfiguration; null, solange unbekannt. */
   location: HaLocation | null = null;
   private ws: WebSocket | null = null;
@@ -152,6 +154,14 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
     );
     if (this.stopped) return;
     if (typeof config?.language === 'string') this.language = config.language;
+    if (config) {
+      const unit = isObj(config.unit_system) ? config.unit_system.temperature : undefined;
+      this.config = {
+        timeZone: typeof config.time_zone === 'string' ? config.time_zone : null,
+        country: typeof config.country === 'string' ? config.country : null,
+        fahrenheit: typeof unit === 'string' ? unit.includes('F') : null,
+      };
+    }
     const { latitude, longitude } = config ?? {};
     // HA setzt bei neuen Installationen 0/0, wenn kein Standort eingetragen ist.
     if (typeof latitude === 'number' && typeof longitude === 'number' && (latitude !== 0 || longitude !== 0)) {

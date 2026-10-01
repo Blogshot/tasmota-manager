@@ -7,6 +7,8 @@ export interface MqttConfig {
   url: string;
   username?: string;
   password?: string;
+  /** true, wenn der Broker vom Supervisor-Dienst (also von HA) kommt. */
+  onHa?: boolean;
 }
 
 export interface HaConfig {
@@ -93,6 +95,7 @@ async function resolveMqtt(
               url: `${data.ssl ? 'mqtts' : 'mqtt'}://${data.host}:${data.port ?? 1883}`,
               username: data.username,
               password: data.password,
+              onHa: true,
             },
           };
         }
@@ -123,6 +126,17 @@ export function detectHostCidrs(ifaces: ReturnType<typeof networkInterfaces> = n
     }
   }
   return [...result];
+}
+
+/** Erste IPv4-Adresse des Hosts im LAN (die App läuft mit host_network). */
+export function detectHostIp(ifaces: ReturnType<typeof networkInterfaces> = networkInterfaces()): string | null {
+  for (const [name, addresses] of Object.entries(ifaces)) {
+    if (IGNORED_INTERFACES.test(name)) continue;
+    for (const address of addresses ?? []) {
+      if (address.family === 'IPv4' && !address.internal) return address.address;
+    }
+  }
+  return null;
 }
 
 function resolveHa(env: NodeJS.ProcessEnv): HaConfig | null {
