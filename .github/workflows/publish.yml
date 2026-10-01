@@ -1,8 +1,9 @@
 name: Publish images
 
 # Baut die App-Images für Home Assistant und legt sie in der GitHub-Registry ab.
-# Läuft auf GitHub (öffentliche Quelle). Forgejo ignoriert diesen Ordner, weil es
-# .forgejo/workflows gibt. Der Tag v<Version> muss zur Version in config.yaml passen.
+# Läuft nur auf GitHub (öffentliche Quelle); in Forgejo sind Actions abgeschaltet.
+# Der Tag v<Version> muss zur Version in config.yaml passen. Gebaut wird erst,
+# wenn Typecheck und Tests für denselben Commit durchgelaufen sind.
 on:
   push:
     tags: ["v*"]
@@ -13,7 +14,11 @@ permissions:
   packages: write
 
 jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
   image:
+    needs: test
     name: Image ${{ matrix.arch }}
     strategy:
       fail-fast: false

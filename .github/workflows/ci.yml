@@ -1,0 +1,41 @@
+name: CI
+
+# Typecheck, Tests und Build bei jedem Push auf jeden Branch (Forgejo spiegelt alle
+# Branches hierher). publish.yml ruft diesen Workflow vor dem Image-Bau auf.
+on:
+  push:
+    branches: ["**"]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  test:
+    name: Typecheck, Tests, Build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: tasmota_manager
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: tasmota_manager/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
