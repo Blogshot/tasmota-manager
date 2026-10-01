@@ -104,6 +104,7 @@ export async function startServer(config: AppConfig, overrides: StartOverrides =
     enricher,
     version: overrides.version ?? 'dev',
     mqttStatus: () => mqtt?.status ?? 'disabled',
+    haLocation: () => ha?.location ?? null,
     webDir: webDir && existsSync(webDir) ? webDir : undefined,
     allowedIps: config.ingressOnly ? ['172.30.32.2', '127.0.0.1'] : undefined,
     logger: log,

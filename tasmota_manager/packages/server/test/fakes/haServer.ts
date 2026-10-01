@@ -5,6 +5,7 @@ export interface FakeHaData {
   devices: Array<Record<string, unknown>>;
   entities: Array<Record<string, unknown>>;
   language?: string;
+  location?: { latitude: number; longitude: number };
   areas: Array<Record<string, unknown>>;
   related: Record<string, { automation?: string[] }>;
 }
@@ -84,7 +85,7 @@ export class FakeHa {
           ok(this.data.areas);
           break;
         case 'get_config':
-          ok({ language: this.data.language ?? 'en' });
+          ok({ language: this.data.language ?? 'en', ...this.data.location });
           break;
         case 'search/related':
           if (this.failRelated) break;

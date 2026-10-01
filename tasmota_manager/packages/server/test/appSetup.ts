@@ -1,3 +1,4 @@
+import type { HaLocation } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/api/app';
 import { WsHub, wireLiveEvents } from '../src/api/hub';
@@ -19,6 +20,7 @@ export interface SetupOptions {
   webDir?: string;
   fakePassword?: string;
   fake?: Partial<FakeTasmotaOptions>;
+  haLocation?: HaLocation;
 }
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -67,6 +69,7 @@ export async function setupApp(opts: SetupOptions = {}) {
     enricher,
     version: 'test',
     mqttStatus: () => 'disabled',
+    haLocation: () => opts.haLocation ?? null,
     allowedIps: opts.allowedIps,
     webDir: opts.webDir,
   });

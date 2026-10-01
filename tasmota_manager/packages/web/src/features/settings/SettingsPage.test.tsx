@@ -23,7 +23,7 @@ const SETTINGS = {
 describe('SettingsPage', () => {
   beforeEach(() => {
     vi.mocked(api.settings).mockResolvedValue(SETTINGS);
-    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false });
+    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation: null });
     vi.mocked(api.updateSettings).mockImplementation(async (patch) => ({ ...SETTINGS, ...patch, hasGlobalPassword: false }));
   });
 

@@ -30,10 +30,10 @@ describe('applyMessage', () => {
 
   it('pflegt MQTT- und Scan-Status', () => {
     const qc = new QueryClient();
-    qc.setQueryData<StatusResponse>(['status'], { mqtt: 'connected', version: 'x', scanning: false });
+    qc.setQueryData<StatusResponse>(['status'], { mqtt: 'connected', version: 'x', scanning: false, haLocation: null });
     applyMessage(qc, { type: 'mqtt:status', status: 'disconnected' });
     applyMessage(qc, { type: 'scan:progress', scanned: 16, total: 254, found: 1 });
-    expect(qc.getQueryData(['status'])).toEqual({ mqtt: 'disconnected', version: 'x', scanning: true });
+    expect(qc.getQueryData(['status'])).toEqual({ mqtt: 'disconnected', version: 'x', scanning: true, haLocation: null });
     expect(qc.getQueryData(['scan'])).toMatchObject({ scanned: 16, total: 254 });
     applyMessage(qc, { type: 'scan:done', found: 1 });
     expect(qc.getQueryData<StatusResponse>(['status'])?.scanning).toBe(false);

@@ -24,7 +24,7 @@ describe('DevicesPage', () => {
       makeDevice({ id: 'B', name: 'Garage', online: false, channels: [] }),
       makeDevice({ id: 'C', name: 'Steckdose', channels: ['http'] }),
     ]);
-    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false });
+    vi.mocked(api.status).mockResolvedValue({ mqtt: 'connected', version: 'x', scanning: false, haLocation: null });
   });
 
   it('zeigt alle Geräte', async () => {

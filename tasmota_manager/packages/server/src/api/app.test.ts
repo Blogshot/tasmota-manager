@@ -99,7 +99,12 @@ describe('Einstellungen, Status und Scan', () => {
 
   it('liefert den Status', async () => {
     const { app } = await setup();
-    expect((await app.inject('/api/status')).json()).toEqual({ mqtt: 'disabled', version: 'test', scanning: false });
+    expect((await app.inject('/api/status')).json()).toEqual({ mqtt: 'disabled', version: 'test', scanning: false, haLocation: null });
+  });
+
+  it('liefert den Standort aus Home Assistant für Koordinaten-Vorschläge', async () => {
+    const { app } = await setup({ haLocation: { latitude: 52.52, longitude: 13.405 } });
+    expect((await app.inject('/api/status')).json()).toMatchObject({ haLocation: { latitude: 52.52, longitude: 13.405 } });
   });
 
   it('startet Scans über die konfigurierten Bereiche', async () => {

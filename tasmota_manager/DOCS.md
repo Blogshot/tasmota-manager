@@ -31,6 +31,10 @@ Beim Batch-Lauf gilt:
 - Jeder Wert wird zurückgelesen und geprüft.
 - Fehlgeschlagene Änderungen bleiben mit ihrer Fehlermeldung stehen und lassen sich erneut starten.
 
+## Standort für Sonnenzeiten
+
+Bei **Breitengrad** und **Längengrad** schlägt die App den Standort aus den Home-Assistant-Einstellungen vor; ein Klick übernimmt beide Werte. Über **Auf Karte wählen** öffnet sich eine Weltkarte, auf der ein Klick den Ort setzt. Die Kartenkacheln lädt der Browser von OpenStreetMap (tile.openstreetmap.org); ohne Internetzugang bleibt die Karte leer, der Vorschlag aus Home Assistant funktioniert trotzdem.
+
 ## Verknüpfung mit Home Assistant
 
 Die App liest über die Home-Assistant-API, welche Entitäten und Automationen zu einem Tasmota-Gerät gehören, und verlinkt sie in der Geräteübersicht. Den Bereich des Geräts in Home Assistant nutzt sie außerdem für Namensvorschläge. Die Entitäten-Spalte zeigt Schalter, Lichter und Sensoren; Diagnose- und Konfigurations-Entitäten sowie deaktivierte Entitäten blendet sie aus.

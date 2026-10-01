@@ -19,6 +19,7 @@ const data = (): FakeHaData => ({
   ],
   areas: [{ area_id: 'bad', name: 'Bad' }],
   language: 'de',
+  location: { latitude: 52.52, longitude: 13.405 },
   related: { dev1: { automation: ['automation.licht_bad', 'automation.yaml_ohne_id'] } },
 });
 
@@ -76,6 +77,7 @@ describe('HaClient', () => {
     client.start();
     await waitFor(() => client?.link('AABBCC112233'));
     expect(client.language).toBe('de');
+    expect(client.location).toEqual({ latitude: 52.52, longitude: 13.405 });
   });
 
   it('lädt bei Registry-Events neu und meldet Änderungen', async () => {

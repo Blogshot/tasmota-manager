@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { HaLink } from '@tm/shared';
+import type { HaLink, HaLocation } from '@tm/shared';
 import type { Logger } from 'pino';
 import WebSocket from 'ws';
 import type { HaConfig } from '../config';
@@ -68,6 +68,8 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
   ready = false;
   /** Systemsprache von Home Assistant (z. B. "de"); null, solange sie nicht gelesen wurde. */
   language: string | null = null;
+  /** Standort des Heims aus der HA-Konfiguration; null, solange unbekannt. */
+  location: HaLocation | null = null;
   private ws: WebSocket | null = null;
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
@@ -139,15 +141,20 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
         }),
       });
     }
-    const language = await this.call('get_config').then(
-      (config) => (isObj(config) && typeof config.language === 'string' ? config.language : null),
+    const config = await this.call('get_config').then(
+      (result) => (isObj(result) ? result : null),
       (err: unknown) => {
         if (!(err instanceof HaResultError)) throw err;
         return null;
       },
     );
     if (this.stopped) return;
-    this.language = language ?? this.language;
+    if (typeof config?.language === 'string') this.language = config.language;
+    const { latitude, longitude } = config ?? {};
+    // HA setzt bei neuen Installationen 0/0, wenn kein Standort eingetragen ist.
+    if (typeof latitude === 'number' && typeof longitude === 'number' && (latitude !== 0 || longitude !== 0)) {
+      this.location = { latitude, longitude };
+    }
     this.links = next;
     this.emit('changed');
   }

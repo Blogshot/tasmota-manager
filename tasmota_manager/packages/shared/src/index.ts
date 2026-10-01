@@ -142,10 +142,18 @@ export const SettingsUpdateRequestSchema = SettingsSchema.omit({ hasGlobalPasswo
   .extend({ globalPassword: z.string().max(64).nullable().optional() });
 export type SettingsUpdateRequest = z.infer<typeof SettingsUpdateRequestSchema>;
 
+/** Standort des Heims aus der HA-Konfiguration. */
+export interface HaLocation {
+  latitude: number;
+  longitude: number;
+}
+
 export interface StatusResponse {
   mqtt: MqttStatus;
   version: string;
   scanning: boolean;
+  /** null, wenn kein HA-Zugriff besteht oder HA keinen Standort kennt */
+  haLocation: HaLocation | null;
 }
 
 export interface ScanProgress {

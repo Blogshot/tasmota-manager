@@ -7,6 +7,7 @@ export function registerLiveRoutes(app: FastifyInstance, deps: AppDeps): void {
     mqtt: deps.mqttStatus(),
     version: deps.version,
     scanning: deps.scanner.running,
+    haLocation: deps.haLocation?.() ?? null,
   }));
 
   app.post('/api/scan', async (_req, reply) => {

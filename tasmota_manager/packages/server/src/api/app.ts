@@ -1,6 +1,6 @@
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
-import type { MqttStatus } from '@tm/shared';
+import type { HaLocation, MqttStatus } from '@tm/shared';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Logger } from 'pino';
 import type { JobRepo } from '../changes/jobs';
@@ -29,6 +29,8 @@ export interface AppDeps {
   jobs: JobRepo;
   enricher: DeviceEnricher;
   mqttStatus: () => MqttStatus;
+  /** Standort aus Home Assistant für Koordinaten-Vorschläge */
+  haLocation?: () => HaLocation | null;
   version: string;
   webDir?: string;
   allowedIps?: string[];

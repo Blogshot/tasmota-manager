@@ -1,6 +1,7 @@
 import type { SettingDef } from '@tm/shared';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LocationTools } from '@/features/location/LocationTools';
 import { validationText } from '@/lib/errors';
 import { useT } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/messages';
@@ -29,6 +30,16 @@ export function SettingsFields({ defs, values, errors, onChange, current, idPref
       {groups.map((group) => (
         <fieldset key={group} className="space-y-3">
           <legend className="text-sm font-medium">{t(`group.${group}` as MessageKey)}</legend>
+          {group === 'location' && (
+            <LocationTools
+              latitude={values.Latitude ?? ''}
+              longitude={values.Longitude ?? ''}
+              onPick={(latitude, longitude) => {
+                onChange('Latitude', latitude);
+                onChange('Longitude', longitude);
+              }}
+            />
+          )}
           {defs
             .filter((d) => d.group === group)
             .map((def) => {
