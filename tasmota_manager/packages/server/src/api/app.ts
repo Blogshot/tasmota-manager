@@ -13,6 +13,7 @@ import type { DeviceRegistry } from '../registry';
 import type { SettingsStore } from '../settings';
 import { registerChangeRoutes } from './changes';
 import { registerDeviceRoutes } from './devices';
+import { registerFastRuleRoutes } from './fastRule';
 import type { WsHub } from './hub';
 import { registerLiveRoutes } from './live';
 import { registerSettingsRoutes } from './settings';
@@ -56,6 +57,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerSettingsRoutes(app, deps);
   registerLiveRoutes(app, deps);
   registerChangeRoutes(app, deps);
+  registerFastRuleRoutes(app, deps);
 
   if (deps.webDir) {
     await app.register(fastifyStatic, { root: deps.webDir });

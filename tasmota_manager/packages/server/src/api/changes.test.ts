@@ -152,4 +152,33 @@ describe('Änderungs-API', () => {
     expect(messages.find((m) => m.type === 'changes:updated')).toEqual({ type: 'changes:updated', count: 1 });
     ws.terminate();
   });
+
+  it('schlägt eine Sofort-Regel vor und merkt sie im freien Slot vor', async () => {
+    const { app, store } = await setupApp({ fake: { sensors: { AM2301: { Temperature: 21, Humidity: 40 } } } });
+    await addFake(app);
+    const preview = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC] } });
+    expect(preview.json()).toEqual([
+      expect.objectContaining({ rule: 'ON AM2301#Temperature DO TelePeriod 1 ENDON', slot: 1, reason: 'ok' }),
+    ]);
+    const staged = await app.inject({ method: 'POST', url: '/api/fast-rule/stage', payload: { deviceIds: [MAC] } });
+    expect(staged.json()).toMatchObject({ staged: 3 });
+    expect(store.forDevice(MAC).map((r) => r.key).sort()).toEqual(['Rule1', 'Rule1Enabled', 'TelePeriod']);
+  });
+
+  it('überschreibt keine belegten Rule-Slots', async () => {
+    const { app, fake } = await setupApp({ fake: { sensors: { AM2301: { Temperature: 21 } } } });
+    await addFake(app);
+    for (const n of [1, 2, 3]) fake.execute(`Rule${n} ON System#Boot DO Power 1 ENDON`);
+    const preview = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC] } });
+    expect(preview.json()).toEqual([expect.objectContaining({ slot: null, reason: 'noSlot' })]);
+  });
+
+  it('meldet nicht erreichbare Geräte, ohne die anderen abzubrechen', async () => {
+    const { app, fake } = await setupApp({ fake: { sensors: { AM2301: { Temperature: 21 } } } });
+    await addFake(app);
+    await fake.stop();
+    const preview = await app.inject({ method: 'POST', url: '/api/fast-rule/preview', payload: { deviceIds: [MAC, 'GIBTSNICHT'] } });
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json()).toEqual([expect.objectContaining({ deviceId: MAC, slot: null, reason: 'unreachable' })]);
+  });
 });
