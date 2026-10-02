@@ -63,6 +63,30 @@ describe('HaClient', () => {
     expect(client.link('AABBCC000002')).toMatchObject({ deviceId: 'dev2', areaName: null, nameByUser: 'Eigener Name', entities: [], automations: [] });
   });
 
+  it('wählt bei mehreren HA-Geräten mit derselben MAC das Tasmota-Gerät, nicht den Netzwerk-Tracker', async () => {
+    const d = data();
+    // Ein Tracker (z. B. UniFi) mit derselben MAC, einmal vor und einmal nach dem Tasmota-Gerät gelistet.
+    const tracker = (id: string, mac: string) => ({ id, area_id: null, manufacturer: null, connections: [['mac', mac]] as Array<[string, string]>, identifiers: [] });
+    d.devices = [
+      { id: 'sensor-dev', area_id: 'bad', manufacturer: 'Tasmota', connections: [['mac', 'aa:bb:cc:11:22:33']], identifiers: [['fritz', 'AA:BB:CC:11:22:33']] },
+      tracker('tracker-after', 'aa:bb:cc:11:22:33'),
+      tracker('tracker-before', 'aa:bb:cc:44:55:66'),
+      { id: 'plug-dev', area_id: null, manufacturer: 'Tasmota', connections: [['mac', 'aa:bb:cc:44:55:66']], identifiers: [] },
+    ];
+    d.entities = [
+      ...d.entities.map((e) => (e.device_id === 'dev1' ? { ...e, device_id: 'sensor-dev' } : e)),
+      { entity_id: 'device_tracker.sensor', device_id: 'tracker-after', unique_id: 't1', name: null, original_name: 'Sensor' },
+      { entity_id: 'device_tracker.plug', device_id: 'tracker-before', unique_id: 't2', name: null, original_name: 'Plug' },
+    ];
+    d.related = { 'sensor-dev': { automation: ['automation.licht_bad'] } };
+    ha = await new FakeHa(d).start();
+    client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20 });
+    client.start();
+    const link = await waitFor(() => client?.link('AABBCC112233'));
+    expect(link).toMatchObject({ deviceId: 'sensor-dev', areaName: 'Bad', automations: [{ entityId: 'automation.licht_bad' }] });
+    expect(client.link('AABBCC445566')).toMatchObject({ deviceId: 'plug-dev' });
+  });
+
   it('lässt Diagnose-, Konfigurations- und deaktivierte Entitäten weg', async () => {
     ha = await new FakeHa(data()).start();
     client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20 });

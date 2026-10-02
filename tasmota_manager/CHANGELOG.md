@@ -2,6 +2,7 @@
 
 ## 0.5.1
 
+- Home Assistant links: if Home Assistant lists several devices with the same MAC address (for example the Tasmota device and a network tracker from UniFi or a FRITZ!Box), the app now links the Tasmota device, so its automations, entities and area show up again.
 - Telemetry tab: values now come first and the sparklines sit in a fixed column on the right, so values and sparklines line up across rows.
 
 ## 0.5.0

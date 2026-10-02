@@ -13,15 +13,16 @@ export interface HaClientOptions {
   reconnectMs?: number;
 }
 
-interface RegistryDevice {
+export interface RegistryDevice {
   id?: string;
   area_id?: string | null;
   name_by_user?: string | null;
+  manufacturer?: string | null;
   connections?: Array<[string, string]>;
   identifiers?: Array<[string, string]>;
 }
 
-interface RegistryEntity {
+export interface RegistryEntity {
   entity_id: string;
   device_id?: string | null;
   unique_id?: string | null;
@@ -57,6 +58,31 @@ export function macOfHaDevice(device: RegistryDevice): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Ordnet jeder MAC genau ein HA-Gerät zu. HA kann mehrere Geräte mit derselben MAC führen,
+ * z. B. das Tasmota-Gerät und einen Netzwerk-Tracker (UniFi, Fritz!Box); gewählt wird dann das
+ * Gerät mit Tasmota-Identifier, sonst mit Hersteller Tasmota, sonst das mit den meisten Entitäten.
+ */
+export function pickDevicePerMac(devices: RegistryDevice[], entities: RegistryEntity[]): Map<string, RegistryDevice & { id: string }> {
+  const entityCount = new Map<string, number>();
+  for (const e of entities) if (e.device_id) entityCount.set(e.device_id, (entityCount.get(e.device_id) ?? 0) + 1);
+  const score = (d: RegistryDevice & { id: string }): [number, number, number] => [
+    (d.identifiers ?? []).some(([domain]) => domain === 'tasmota') ? 1 : 0,
+    d.manufacturer === 'Tasmota' ? 1 : 0,
+    entityCount.get(d.id) ?? 0,
+  ];
+  const better = (a: [number, number, number], b: [number, number, number]) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  const picked = new Map<string, RegistryDevice & { id: string }>();
+  for (const device of devices) {
+    const mac = macOfHaDevice(device);
+    if (!mac || !device.id) continue;
+    const candidate = device as RegistryDevice & { id: string };
+    const current = picked.get(mac);
+    if (!current || better(score(candidate), score(current)) > 0) picked.set(mac, candidate);
+  }
+  return picked;
 }
 
 const entityName = (e: RegistryEntity): string => e.name ?? e.original_name ?? e.entity_id;
@@ -124,9 +150,7 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
     const areaNames = new Map(areas.map((a) => [a.area_id, a.name]));
     const byEntityId = new Map(entities.map((e) => [e.entity_id, e]));
     const next = new Map<string, HaLink>();
-    for (const device of devices) {
-      const mac = macOfHaDevice(device);
-      if (!mac || !device.id) continue;
+    for (const [mac, device] of pickDevicePerMac(devices, entities)) {
       let automationIds: string[] = [];
       try {
         const related = await this.call('search/related', { item_type: 'device', item_id: device.id });
