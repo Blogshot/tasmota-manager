@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
 import { SUGGESTIONS, makeDevice } from '@/test/fixtures';
@@ -17,9 +18,13 @@ vi.mock('@/lib/api', () => ({
   },
   ApiError: class extends Error {},
 }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 describe('DevicesPage', () => {
   beforeEach(() => {
+    vi.mocked(toast.success).mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(api.removeDevice).mockReset();
     vi.mocked(api.devices).mockResolvedValue([
       makeDevice({ id: 'A', name: 'Keller-Licht', tags: ['Keller'] }),
       makeDevice({ id: 'B', name: 'Garage', online: false, channels: [] }),
@@ -77,7 +82,40 @@ describe('DevicesPage', () => {
     await user.click(rows[1] as HTMLElement);
     await user.click(screen.getByRole('button', { name: 'Entfernen' }));
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining('2 Geräte'));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Vorgemerkte Änderungen dieser Geräte werden verworfen.'));
     await waitFor(() => expect(api.removeDevice).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('2 Geräte entfernt'));
+    expect(toast.error).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it('meldet Teilfehler beim Entfernen und behält fehlgeschlagene Geräte in der Auswahl', async () => {
+    vi.mocked(api.removeDevice).mockRejectedValueOnce(new Error('boom')).mockResolvedValue(undefined);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    renderWithProviders(<DevicesPage />);
+    await screen.findByText('Keller-Licht');
+    const rows = screen.getAllByRole('checkbox', { name: 'Zeile auswählen' });
+    await user.click(rows[0] as HTMLElement);
+    await user.click(rows[1] as HTMLElement);
+    await user.click(screen.getByRole('button', { name: 'Entfernen' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('1 Geräte konnten nicht entfernt werden'));
+    expect(toast.success).toHaveBeenCalledWith('1 Geräte entfernt');
+    expect(await screen.findByText('1 ausgewählt')).toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it('zeigt keine Erfolgsmeldung, wenn kein Gerät entfernt werden konnte', async () => {
+    vi.mocked(api.removeDevice).mockRejectedValue(new Error('boom'));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    renderWithProviders(<DevicesPage />);
+    await screen.findByText('Keller-Licht');
+    await user.click(screen.getAllByRole('checkbox', { name: 'Zeile auswählen' })[0] as HTMLElement);
+    await user.click(screen.getByRole('button', { name: 'Entfernen' }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('1 Geräte konnten nicht entfernt werden'));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.getByText('1 ausgewählt')).toBeInTheDocument();
     confirm.mockRestore();
   });
 

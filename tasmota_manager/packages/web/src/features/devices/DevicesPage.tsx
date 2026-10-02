@@ -32,11 +32,13 @@ export function DevicesPage() {
   const remove = useMutation({
     mutationFn: async (ids: string[]) => {
       const results = await Promise.allSettled(ids.map((id) => api.removeDevice(id)));
-      return results.filter((r) => r.status === 'fulfilled').length;
+      return { removed: results.filter((r) => r.status === 'fulfilled').length, failed: ids.filter((_, i) => results[i]?.status === 'rejected') };
     },
-    onSuccess: (count) => {
-      toast.success(t('devices.removed', { count }));
-      setRowSelection({});
+    onSuccess: ({ removed, failed }) => {
+      if (removed > 0) toast.success(t('devices.removed', { count: removed }));
+      if (failed.length > 0) toast.error(t('devices.removeFailed', { failed: failed.length }));
+      // Fehlgeschlagene Geräte bleiben ausgewählt, damit man es erneut versuchen kann.
+      setRowSelection(Object.fromEntries(failed.map((id) => [id, true])));
       void qc.invalidateQueries({ queryKey: ['devices'] });
       void qc.invalidateQueries({ queryKey: ['changes'] });
     },
