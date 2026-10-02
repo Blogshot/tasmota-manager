@@ -14,7 +14,7 @@
 
 - Arbeitsverzeichnis: `tasmota_manager/`. Tests: `pnpm test`, Typecheck: `pnpm typecheck`; einzelne Datei: `pnpm --filter @tm/<paket> exec vitest run <pfad>`.
 - Telemetrie liest nur; nichts davon schreibt auf ein Gerät. Gelesen wird nur `Status 10` und `Status 11`.
-- Verlauf: nur im Arbeitsspeicher, 60 Minuten, ein Punkt höchstens alle 5 s (neuerer ersetzt den letzten), höchstens 720 Punkte pro Wert.
+- Verlauf: nur im Arbeitsspeicher, 60 Minuten, Punkte im Abstand von mindestens 5 s (der jeweils letzte Punkt wird bis dahin ersetzt), höchstens 720 Punkte pro Wert.
 - HTTP-Auffrischung im Tab alle 10 000 ms, nur für Geräte ohne Kanal `mqtt`.
 - Oberflächentexte nur über Wörterbuchschlüssel, in allen sechs Wörterbüchern (`web/src/lib/messages.ts` de/en, `web/src/lib/locales/{fr,es,it,nl}.ts`); `errors.test.ts` prüft Vollständigkeit.
 - Diagramme: eine Linie 2 px in einem Farbton (`text-sky-600 dark:text-sky-400`, Linie mit `stroke="currentColor"`), Texte in Textfarben (`text-muted-foreground`), keine zweite y-Achse, Tooltip-Inhalte als React-Text (kein `dangerouslySetInnerHTML`).
@@ -117,7 +117,13 @@ describe('TelemetryStore', () => {
     s.record('A', 'sensor', { AM2301: { Temperature: 20 } });
     advance(2000);
     s.record('A', 'sensor', { AM2301: { Temperature: 21 } });
-    expect(s.get('A').history['AM2301.Temperature']).toEqual([[1_002_000, 21]]);
+    advance(2000);
+    s.record('A', 'sensor', { AM2301: { Temperature: 22 } });
+    // Innerhalb von 5 s nach dem vorletzten Punkt ersetzt ein neuer Wert den letzten.
+    expect(s.get('A').history['AM2301.Temperature']).toEqual([
+      [1_000_000, 20],
+      [1_004_000, 22],
+    ]);
     for (let i = 0; i < 2000; i++) {
       advance(1000);
       s.record('A', 'sensor', { AM2301: { Temperature: i } });
@@ -274,8 +280,9 @@ export class TelemetryStore extends EventEmitter<{ updated: [deviceId: string] }
 
   private push(data: DeviceData, key: string, at: number, value: number): void {
     const points = data.history.get(key) ?? [];
-    const last = points.at(-1);
-    if (last && at - last[0] < MIN_STEP_MS) points[points.length - 1] = [at, value];
+    // Der letzte Punkt ist „live“: Er wird ersetzt, bis 5 s seit dem vorletzten vergangen sind.
+    const previous = points.at(-2);
+    if (previous && at - previous[0] < MIN_STEP_MS) points[points.length - 1] = [at, value];
     else points.push([at, value]);
     while (points.length > 0 && (at - (points[0]?.[0] ?? at) > HOUR_MS || points.length > MAX_POINTS)) points.shift();
     data.history.set(key, points);
@@ -398,7 +405,7 @@ Hinweis: In `record` wird der Einheiten-Name ohne angehängte Kanalnummer gesuch
 
 **Interfaces:**
 - Produces:
-  - `formatTelemetry(value: number | string, unit: string | null, lang: string): string` – Zahlen mit `Intl.NumberFormat(lang, { maximumFractionDigits: 2 })`, Einheit mit Leerzeichen (außer `%` und `°…` direkt angehängt: `48 %` → deutsch üblich mit Leerzeichen; einheitlich: immer ein schmales Leerzeichen ` `).
+  - `formatTelemetry(value: number | string, unit: string | null, lang: string): string` – Zahlen mit `Intl.NumberFormat(lang, { maximumFractionDigits: 2 })`, Einheit mit Leerzeichen (außer `%` und `°…` direkt angehängt: `48 %` → deutsch üblich mit Leerzeichen; einheitlich: immer ein schmales Leerzeichen `\u202F`).
   - `Sparkline({ points }: { points: Array<[number, number]> })` – 80×20 SVG, ab 2 Punkten, sonst `null`.
   - `HistoryChart({ points, unit, label }: { points: Array<[number, number]>; unit: string | null; label: string })` – Diagramm der letzten Stunde.
   - `useLang(): string` aus `@/lib/i18n` (neu exportieren: liefert die aktive Sprache aus dem Kontext), falls noch nicht vorhanden.
@@ -426,8 +433,8 @@ const pts = (values: number[]): Array<[number, number]> => values.map((v, i) => 
 
 describe('formatTelemetry', () => {
   it('formatiert Zahlen in der Sprache mit Einheit', () => {
-    expect(formatTelemetry(21.345, '°C', 'de')).toBe('21,35 °C');
-    expect(formatTelemetry(12, 'W', 'en')).toBe('12 W');
+    expect(formatTelemetry(21.346, '°C', 'de')).toBe('21,35\u202F°C');
+    expect(formatTelemetry(12, 'W', 'en')).toBe('12\u202FW');
     expect(formatTelemetry('ON', null, 'de')).toBe('ON');
   });
 });
@@ -445,11 +452,11 @@ describe('HistoryChart', () => {
   it('zeigt Min, Max und aktuellen Wert und einen Tooltip am nächsten Punkt', () => {
     renderWithProviders(<HistoryChart points={pts([10, 30, 20])} unit="W" label="Power" />);
     expect(screen.getByText('Min')).toBeInTheDocument();
-    expect(screen.getByText('10 W')).toBeInTheDocument();
-    expect(screen.getByText('30 W')).toBeInTheDocument();
+    expect(screen.getByText('10\u202FW')).toBeInTheDocument();
+    expect(screen.getByText('30\u202FW')).toBeInTheDocument();
     const plot = screen.getByRole('img', { name: 'Power' });
     fireEvent.pointerMove(plot, { clientX: 0, clientY: 10 });
-    expect(screen.getByRole('tooltip')).toHaveTextContent('10 W');
+    expect(screen.getByRole('tooltip')).toHaveTextContent('10\u202FW');
   });
 
   it('zeigt ohne Verlauf einen Hinweis statt einer Linie', () => {
@@ -468,7 +475,7 @@ import { type PointerEvent, useMemo, useRef, useState } from 'react';
 import { useLang, useT } from '@/lib/i18n';
 
 type Points = Array<[number, number]>;
-const NARROW = ' ';
+const NARROW = '\u202F';
 
 export function formatTelemetry(value: number | string, unit: string | null, lang: string): string {
   if (typeof value === 'string') return value;
