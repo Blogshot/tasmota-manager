@@ -5,6 +5,7 @@ import { cleanupApps, setupApp } from '../../test/appSetup';
 import { waitFor } from '../../test/helpers';
 import { StageError } from '../changes/store';
 import { DeviceGateway } from '../gateway';
+import { TransportError } from '../transport/errors';
 
 afterEach(cleanupApps);
 
@@ -77,6 +78,77 @@ describe('Änderungs-API', () => {
     expect((await read('MqttPassword')).statusCode).toBe(400);
     expect((await read('Bogus')).statusCode).toBe(404);
     expect((await app.inject('/api/devices/GIBTSNICHT/settings/TelePeriod')).statusCode).toBe(404);
+  });
+
+  describe('Sammel-Lesen von Einstellungen', () => {
+    const readMany = (app: FastifyInstance, keys: unknown, id = MAC) =>
+      app.inject({ method: 'POST', url: `/api/devices/${id}/settings/read`, payload: { keys } });
+
+    it('liest mehrere Einstellungen und überspringt nicht lesbare und unbekannte Schlüssel', async () => {
+      const { app, fake } = await setupApp();
+      await addFake(app);
+      const before = fake.received.length;
+      const res = await readMany(app, ['TelePeriod', 'Timezone', 'MqttPassword', 'Bogus']);
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ values: { TelePeriod: '300', Timezone: '99' } });
+      // Nur Abfragen: keine Befehle mit Wert, MqttPassword wird gar nicht angefragt.
+      const sent = fake.received.slice(before);
+      expect(sent).toEqual(['TelePeriod', 'Timezone']);
+    });
+
+    it('liest nacheinander, nie gleichzeitig', async () => {
+      const { app } = await setupApp();
+      await addFake(app);
+      const original = DeviceGateway.prototype.send;
+      let inFlight = 0;
+      let maxInFlight = 0;
+      const spy = vi.spyOn(DeviceGateway.prototype, 'send').mockImplementation(async function (this: DeviceGateway, ...args) {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          return await original.apply(this, args);
+        } finally {
+          inFlight--;
+        }
+      });
+      const res = await readMany(app, ['TelePeriod', 'Timezone', 'NtpServer1']);
+      expect(spy).toHaveBeenCalledTimes(3);
+      spy.mockRestore();
+      expect(res.json<{ values: Record<string, string | null> }>().values).toMatchObject({ TelePeriod: '300', Timezone: '99' });
+      expect(maxInFlight).toBe(1);
+    });
+
+    it('liefert null für einen fehlgeschlagenen Schlüssel und liest die übrigen weiter', async () => {
+      const { app } = await setupApp();
+      await addFake(app);
+      const original = DeviceGateway.prototype.send;
+      const spy = vi.spyOn(DeviceGateway.prototype, 'send').mockImplementation(async function (this: DeviceGateway, ...args) {
+        if (args[1] === 'TelePeriod') throw new TransportError('rejected', 'nope');
+        return original.apply(this, args);
+      });
+      const res = await readMany(app, ['TelePeriod', 'Timezone']);
+      spy.mockRestore();
+      expect(res.json()).toEqual({ values: { TelePeriod: null, Timezone: '99' } });
+    });
+
+    it('bricht bei nicht erreichbarem Gerät ab und liefert für alle null', async () => {
+      const { app } = await setupApp();
+      await addFake(app);
+      const spy = vi.spyOn(DeviceGateway.prototype, 'send').mockRejectedValue(new TransportError('unreachable', 'weg', false));
+      const res = await readMany(app, ['TelePeriod', 'Timezone', 'NtpServer1']);
+      expect(spy).toHaveBeenCalledTimes(1);
+      spy.mockRestore();
+      expect(res.json()).toEqual({ values: { TelePeriod: null, Timezone: null, NtpServer1: null } });
+    });
+
+    it('antwortet mit 404 für unbekannte Geräte und 400 für ungültige Anfragen', async () => {
+      const { app } = await setupApp();
+      await addFake(app);
+      expect((await readMany(app, ['TelePeriod'], 'GIBTSNICHT')).statusCode).toBe(404);
+      expect((await readMany(app, 'TelePeriod')).statusCode).toBe(400);
+      expect((await readMany(app, Array.from({ length: 61 }, () => 'TelePeriod'))).statusCode).toBe(400);
+    });
   });
 
   it('übergeht abgelehnte Namensvorschläge, auch beim Übernehmen per Batch', async () => {

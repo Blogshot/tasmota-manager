@@ -83,6 +83,14 @@ export interface SettingValue {
   value: string | null;
 }
 
+/** Mehrere Einstellungen auf einmal live lesen (nacheinander, nur Abfragen). */
+export const SettingsReadRequestSchema = z.object({ keys: z.array(z.string().min(1).max(64)).max(60) });
+export type SettingsReadRequest = z.infer<typeof SettingsReadRequestSchema>;
+/** Gelesene Werte je Schlüssel; `null`, wenn das Lesen fehlschlug. Nicht lesbare Schlüssel fehlen. */
+export interface SettingsReadResult {
+  values: Record<string, string | null>;
+}
+
 export const CommandRequestSchema = z.object({ command: z.string().trim().min(1).max(512) });
 export type CommandResult =
   | { ok: true; channel: Channel; response: unknown }

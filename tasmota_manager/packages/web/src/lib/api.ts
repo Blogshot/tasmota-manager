@@ -1,4 +1,4 @@
-import type { CommandResult, Device, DeviceDetail, DeviceTelemetry, DeviceUpdateRequest, FastRulePreview, JobView, PendingDevice, RuleState, Settings, SettingsUpdateRequest, SettingValue, StageRequest, StageResult, StatusResponse, TelemetrySummary, TimersState } from '@tm/shared';
+import type { CommandResult, Device, DeviceDetail, DeviceTelemetry, DeviceUpdateRequest, FastRulePreview, JobView, PendingDevice, RuleState, Settings, SettingsReadResult, SettingsUpdateRequest, SettingValue, StageRequest, StageResult, StatusResponse, TelemetrySummary, TimersState } from '@tm/shared';
 
 export class ApiError extends Error {
   constructor(
@@ -53,4 +53,5 @@ export const api = {
   telemetrySummary: () => request<TelemetrySummary>('telemetry'),
   timers: (id: string) => request<TimersState>(`${deviceUrl(id)}/timers`),
   setting: (id: string, key: string) => request<SettingValue>(`${deviceUrl(id)}/settings/${encodeURIComponent(key)}`),
+  readSettings: (id: string, keys: string[]) => request<SettingsReadResult>(`${deviceUrl(id)}/settings/read`, json('POST', { keys })),
 };

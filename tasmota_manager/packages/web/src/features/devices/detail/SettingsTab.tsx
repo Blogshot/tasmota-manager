@@ -1,5 +1,5 @@
 import { type Device, SETTINGS, readFromStatus, settingApplies } from '@tm/shared';
-import { useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,29 +11,26 @@ import { useT } from '@/lib/i18n';
 
 const DEFS = SETTINGS.filter((d) => d.group !== 'rules' && d.group !== 'timers');
 
+/** `status` ist `undefined`, solange der Detail-Status lädt, und `null`, wenn kein Status 0 gespeichert ist. */
 export function SettingsTab({ device, status }: { device: Device; status: unknown }) {
   const t = useT();
   const fromStatus = useMemo(() => Object.fromEntries(DEFS.map((d) => [d.key, readFromStatus(d.key, status)])), [status]);
-  // Was nicht im gespeicherten Status 0 steht, wird einzeln vom Gerät gelesen (nur Abfragen, Passwörter nie).
+  // Was nicht im gespeicherten Status 0 steht, wird in einem Aufruf nacheinander vom Gerät gelesen
+  // (nur Abfragen, Passwörter nie) – erst wenn der Status geladen ist, und nur bei erreichbaren Geräten.
   const missing = useMemo(
     () => DEFS.filter((d) => !d.writeOnly && settingApplies(d, device.capabilities) && fromStatus[d.key] === null).map((d) => d.key),
     [device.capabilities, fromStatus],
   );
-  const live = useQueries({
-    queries: missing.map((key) => ({
-      queryKey: ['setting', device.id, key],
-      queryFn: () => api.setting(device.id, key),
-      staleTime: 30_000,
-      retry: false,
-    })),
+  const live = useQuery({
+    queryKey: ['settings-read', device.id, missing.join(',')],
+    queryFn: () => api.readSettings(device.id, missing),
+    enabled: device.online && status !== undefined && missing.length > 0,
+    staleTime: 30_000,
+    retry: false,
   });
   const current: Record<string, string | null> = { ...fromStatus };
-  const loading = new Set<string>();
-  missing.forEach((key, i) => {
-    const query = live[i];
-    if (query?.isPending) loading.add(key);
-    else if (query?.data) current[key] = query.data.value;
-  });
+  const loading = new Set<string>(device.online && live.isPending ? missing : []);
+  for (const key of missing) current[key] = live.data?.values[key] ?? null;
   const [values, setValues] = useState<FieldValues>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [fastRuleOpen, setFastRuleOpen] = useState(false);

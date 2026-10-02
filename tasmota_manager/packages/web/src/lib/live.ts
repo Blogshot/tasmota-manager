@@ -57,6 +57,7 @@ export function applyMessage(qc: QueryClient, msg: WsMessage): void {
       void qc.invalidateQueries({ queryKey: ['changes'] });
       void qc.invalidateQueries({ queryKey: ['devices'] });
       void qc.invalidateQueries({ queryKey: ['setting'] });
+      void qc.invalidateQueries({ queryKey: ['settings-read'] });
       break;
   }
 }

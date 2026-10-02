@@ -3,9 +3,13 @@ import {
   CommandRequestSchema,
   type CommandResult,
   type DeviceDetail,
+  type ErrorCode,
   DeviceUpdateRequestSchema,
   type RuleState,
+  type SettingDef,
   type SettingValue,
+  SettingsReadRequestSchema,
+  type SettingsReadResult,
   type TimersState,
   settingDef,
 } from '@tm/shared';
@@ -16,6 +20,9 @@ import type { AppDeps } from './app';
 import { notFound, parseBody } from './validate';
 
 type IdParams = { Params: { id: string } };
+
+/** Fehler, nach denen weitere Abfragen an dasselbe Gerät nur Zeit kosten. */
+const UNREACHABLE = new Set<ErrorCode>(['offline', 'unreachable', 'timeout']);
 
 export function registerDeviceRoutes(app: FastifyInstance, deps: AppDeps): void {
   const { registry, gateway, scanner, enricher } = deps;
@@ -116,6 +123,27 @@ export function registerDeviceRoutes(app: FastifyInstance, deps: AppDeps): void 
       if (err instanceof TransportError) return reply.code(502).send({ code: err.code, message: err.message });
       throw err;
     }
+  });
+
+  /**
+   * Liest mehrere Einstellungen live vom Gerät, nacheinander (nur Abfragen, schreibt nichts). Nicht lesbare und
+   * unbekannte Schlüssel werden übersprungen; ist das Gerät nicht erreichbar, bleiben die übrigen Werte `null`.
+   */
+  app.post<IdParams>('/api/devices/:id/settings/read', async (req, reply) => {
+    const body = parseBody(SettingsReadRequestSchema, req.body, reply);
+    if (!body) return reply;
+    const id = req.params.id;
+    if (!registry.get(id)) return reply.code(404).send(notFound());
+    const defs = [...new Set(body.keys)].map((key) => settingDef(key)).filter((def): def is SettingDef => def !== undefined && !def.writeOnly);
+    const values: SettingsReadResult['values'] = Object.fromEntries(defs.map((def) => [def.key, null]));
+    for (const def of defs) {
+      try {
+        values[def.key] = extractValue(def, (await gateway.send(id, readCommand(def))).response);
+      } catch (err) {
+        if (err instanceof TransportError && UNREACHABLE.has(err.code)) break;
+      }
+    }
+    return { values } satisfies SettingsReadResult;
   });
 
   /** Liest den aktuellen Wert einer Einstellung live vom Gerät (nur Abfrage, schreibt nichts). */

@@ -142,7 +142,7 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
           <TelemetryTab device={device} />
         </TabsContent>
         <TabsContent value="settings">
-          <SettingsTab device={device} status={detail?.status ?? null} />
+          <SettingsTab device={device} status={detail === undefined ? undefined : detail.status} />
         </TabsContent>
         <TabsContent value="rules">
           <RulesTab deviceId={device.id} />

@@ -19,7 +19,7 @@ vi.mock('@/lib/api', () => ({
     stage: vi.fn(),
     rules: vi.fn(),
     timers: vi.fn(),
-    setting: vi.fn(),
+    readSettings: vi.fn(),
   },
   ApiError: class extends Error {},
 }));
@@ -37,8 +37,10 @@ describe('Detail-Tabs', () => {
       { index: 3, enabled: false, text: '', length: 0, free: 511 },
     ]);
     vi.mocked(api.timers).mockResolvedValue({ enabled: true, timers: Array.from({ length: 16 }, () => DEFAULT_TIMER) });
-    vi.mocked(api.setting).mockReset();
-    vi.mocked(api.setting).mockImplementation(async (_id, key) => ({ value: key === 'NtpServer1' ? 'de.pool.ntp.org' : key === 'SetOption65' ? '1' : null }));
+    vi.mocked(api.readSettings).mockReset();
+    vi.mocked(api.readSettings).mockImplementation(async (_id, keys) => ({
+      values: Object.fromEntries(keys.map((key) => [key, key === 'NtpServer1' ? 'de.pool.ntp.org' : key === 'SetOption65' ? '1' : null])),
+    }));
   });
 
   const open = async (tab: string) => {
@@ -64,17 +66,36 @@ describe('Detail-Tabs', () => {
     const ntp = await screen.findByLabelText('NTP-Server 1');
     await waitFor(() => expect(ntp).toHaveAttribute('placeholder', 'de.pool.ntp.org'));
     await waitFor(() => expect(screen.getByLabelText(/SetOption65/)).toHaveDisplayValue('An (aktuell)'));
-    // Bereits aus dem Status bekannte Werte werden nicht erneut gelesen, Passwörter nie.
-    expect(api.setting).not.toHaveBeenCalledWith('A', 'PowerOnState');
-    expect(api.setting).not.toHaveBeenCalledWith('A', 'MqttPassword');
+    // Ein einziger Aufruf für alle fehlenden Werte; bereits aus dem Status bekannte Werte werden nicht erneut gelesen, Passwörter nie.
+    expect(api.readSettings).toHaveBeenCalledTimes(1);
+    const keys = vi.mocked(api.readSettings).mock.calls[0]?.[1] ?? [];
+    expect(vi.mocked(api.readSettings).mock.calls[0]?.[0]).toBe('A');
+    expect(keys).toEqual(expect.arrayContaining(['NtpServer1', 'SetOption65']));
+    expect(keys).not.toContain('PowerOnState');
+    expect(keys).not.toContain('MqttPassword');
   });
 
-  it('zeigt einen Ladespinner, solange ein Wert gelesen wird', async () => {
-    vi.mocked(api.setting).mockImplementation(() => new Promise(() => {}));
+  it('zeigt einen Ladespinner, bis die Werte gelesen sind', async () => {
+    let resolve: (value: { values: Record<string, string | null> }) => void = () => {};
+    vi.mocked(api.readSettings).mockImplementation(() => new Promise((r) => (resolve = r)));
     await open('Einstellungen');
     await screen.findByLabelText('NTP-Server 1');
     expect(screen.getAllByRole('status', { name: 'Wird geladen' }).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('NTP-Server 1')).toHaveAttribute('placeholder', '');
+    await waitFor(() => expect(api.readSettings).toHaveBeenCalledTimes(1));
+    resolve({ values: { NtpServer1: 'de.pool.ntp.org' } });
+    await waitFor(() => expect(screen.getByLabelText('NTP-Server 1')).toHaveAttribute('placeholder', 'de.pool.ntp.org'));
+    expect(screen.queryAllByRole('status', { name: 'Wird geladen' })).toHaveLength(0);
+  });
+
+  it('liest bei Offline-Geräten nichts und zeigt „unverändert“', async () => {
+    const offline = makeDevice({ id: 'A', name: 'Keller', online: false });
+    vi.mocked(api.devices).mockResolvedValue([offline]);
+    vi.mocked(api.device).mockResolvedValue({ ...offline, status: { Status: { PowerOnState: 3 } } });
+    await open('Einstellungen');
+    await waitFor(() => expect(screen.getByLabelText('NTP-Server 1')).toHaveAttribute('placeholder', 'unverändert'));
+    expect(screen.queryAllByRole('status', { name: 'Wird geladen' })).toHaveLength(0);
+    expect(api.readSettings).not.toHaveBeenCalled();
   });
 
   it('bearbeitet Rules und merkt nur Geänderte vor', async () => {

@@ -61,8 +61,12 @@ describe('applyMessage', () => {
     qc.setQueryData(['job'], { job });
     applyMessage(qc, { type: 'job:progress', jobId: 7, item: { deviceId: 'A', deviceName: 'A', status: 'running', step: 'restart', error: null } });
     expect(qc.getQueryData<{ job: JobView }>(['job'])?.job.items[0]).toMatchObject({ status: 'running', step: 'restart' });
+    qc.setQueryData(['setting', 'A', 'TelePeriod'], { value: '300' });
+    qc.setQueryData(['settings-read', 'A', 'TelePeriod'], { values: { TelePeriod: '300' } });
     applyMessage(qc, { type: 'job:done', job: { ...job, status: 'done' } });
     expect(qc.getQueryData<{ job: JobView }>(['job'])?.job.status).toBe('done');
+    expect(qc.getQueryState(['setting', 'A', 'TelePeriod'])?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(['settings-read', 'A', 'TelePeriod'])?.isInvalidated).toBe(true);
   });
 
   it('aktualisiert bei Telemetrie die Übersicht und invalidiert nur die Live-Abfrage', () => {
