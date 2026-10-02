@@ -64,6 +64,21 @@ describe('TelemetryStore', () => {
       [1_000_000, 20],
       [1_004_000, 22],
     ]);
+    // Der letzte Punkt liegt erst 4 s nach dem vorletzten: Er wird weiter ersetzt …
+    advance(1000);
+    s.record('A', 'sensor', { AM2301: { Temperature: 23 } });
+    expect(s.get('A').history['AM2301.Temperature']).toEqual([
+      [1_000_000, 20],
+      [1_005_000, 23],
+    ]);
+    // … und bleibt stehen, sobald er 5 s vom vorletzten entfernt ist.
+    advance(1000);
+    s.record('A', 'sensor', { AM2301: { Temperature: 24 } });
+    expect(s.get('A').history['AM2301.Temperature']).toEqual([
+      [1_000_000, 20],
+      [1_005_000, 23],
+      [1_006_000, 24],
+    ]);
     for (let i = 0; i < 2000; i++) {
       advance(1000);
       s.record('A', 'sensor', { AM2301: { Temperature: i } });
@@ -72,6 +87,21 @@ describe('TelemetryStore', () => {
     expect(points.length).toBeLessThanOrEqual(720);
     const newest = points.at(-1)?.[0] ?? 0;
     expect(points.every(([t]) => newest - t <= 60 * 60 * 1000)).toBe(true);
+  });
+
+  it('deckt bei Telemetrie im Sekundentakt 60 Minuten ab', () => {
+    const { s, advance } = store();
+    for (let i = 0; i < 4000; i++) {
+      s.record('A', 'sensor', { AM2301: { Temperature: i } });
+      advance(1000);
+    }
+    const points = s.get('A').history['AM2301.Temperature'] ?? [];
+    expect(points.length).toBeLessThanOrEqual(720);
+    const first = points[0]?.[0] ?? 0;
+    const newest = points.at(-1)?.[0] ?? 0;
+    expect(newest - first).toBeGreaterThanOrEqual(59 * 60 * 1000);
+    const stored = points.slice(0, -1);
+    for (let i = 1; i < stored.length; i++) expect((stored[i]?.[0] ?? 0) - (stored[i - 1]?.[0] ?? 0)).toBeGreaterThanOrEqual(5000);
   });
 
   it('wählt bis zu zwei Hauptwerte in fester Rangfolge, nie aus „device“', () => {

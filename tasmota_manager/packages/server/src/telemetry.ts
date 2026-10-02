@@ -113,9 +113,11 @@ export class TelemetryStore extends EventEmitter<{ updated: [deviceId: string] }
 
   private push(data: DeviceData, key: string, at: number, value: number): void {
     const points = data.history.get(key) ?? [];
-    // Der letzte Punkt ist „live“: Er wird ersetzt, bis 5 s seit dem vorletzten vergangen sind.
+    // Der letzte Punkt ist „live“: Er wird ersetzt, solange er selbst noch keine 5 s vom vorletzten entfernt ist.
+    // So liegen abgelegte Punkte mindestens 5 s auseinander, und 720 Punkte decken eine Stunde ab.
     const previous = points.at(-2);
-    if (previous && at - previous[0] < MIN_STEP_MS) points[points.length - 1] = [at, value];
+    const last = points.at(-1);
+    if (previous && last && last[0] - previous[0] < MIN_STEP_MS) points[points.length - 1] = [at, value];
     else points.push([at, value]);
     while (points.length > 0 && (at - (points[0]?.[0] ?? at) > HOUR_MS || points.length > MAX_POINTS)) points.shift();
     data.history.set(key, points);
