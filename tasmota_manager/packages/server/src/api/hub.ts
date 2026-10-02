@@ -50,11 +50,10 @@ export function wireLiveEvents(deps: {
   deps.registry.on('removed', (id) => hub.broadcast({ type: 'device:removed', id }));
   deps.registry.on('removed', (id) => deps.telemetry?.remove(id));
   deps.telemetry?.on('updated', (deviceId) => {
-    const t = deps.telemetry?.get(deviceId);
     hub.broadcast({
       type: 'telemetry',
       deviceId,
-      updatedAt: t?.updatedAt ?? new Date().toISOString(),
+      updatedAt: deps.telemetry?.updatedAt(deviceId) ?? new Date().toISOString(),
       headline: deps.telemetry?.headline(deviceId) ?? [],
     });
   });

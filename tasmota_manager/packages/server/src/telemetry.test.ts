@@ -104,6 +104,17 @@ describe('TelemetryStore', () => {
     for (let i = 1; i < stored.length; i++) expect((stored[i]?.[0] ?? 0) - (stored[i - 1]?.[0] ?? 0)).toBeGreaterThanOrEqual(5000);
   });
 
+  it('misst Distanz beim SR04 in cm, sonst in mm, und Sleep in ms', () => {
+    const { s } = store();
+    s.record('A', 'sensor', { SR04: { Distance: 12.5 }, 'SR04-2': { Distance: 30 }, VL53L0X: { Distance: 120 } });
+    s.record('A', 'state', { Sleep: 50 });
+    const unit = (key: string) => s.get('A').values.find((v) => v.key === key)?.unit;
+    expect(unit('SR04.Distance')).toBe('cm');
+    expect(unit('SR04-2.Distance')).toBe('cm');
+    expect(unit('VL53L0X.Distance')).toBe('mm');
+    expect(unit('Sleep')).toBe('ms');
+  });
+
   it('wählt bis zu zwei Hauptwerte in fester Rangfolge, nie aus „device“', () => {
     const { s } = store();
     s.record('A', 'sensor', SENSOR);
@@ -124,6 +135,8 @@ describe('TelemetryStore', () => {
     s.record('A', 'sensor', 'kaputt');
     expect(seen).toEqual(['A']);
     expect(s.get('A').updatedAt).toBe(new Date(1_000_000).toISOString());
+    expect(s.updatedAt('A')).toBe(new Date(1_000_000).toISOString());
+    expect(s.updatedAt('B')).toBeNull();
     s.remove('A');
     expect(s.get('A')).toEqual({ updatedAt: null, values: [], history: {} });
   });

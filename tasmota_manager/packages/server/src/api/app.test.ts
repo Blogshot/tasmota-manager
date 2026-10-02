@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Device, DeviceTelemetry, WsMessage } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanupApps, setupApp as setup } from '../../test/appSetup';
 import { silentLogger, waitFor } from '../../test/helpers';
 import { haSuggestionsFrom } from '../haSuggestions';
@@ -174,8 +174,13 @@ describe('Telemetrie-API', () => {
     const ws = await app.injectWS('/api/ws');
     await waitFor(() => hub.size === 1);
     const received = new Promise<WsMessage>((resolve) => ws.on('message', (data) => resolve(JSON.parse(data.toString()))));
+    // Für das Ereignis wird nicht der ganze Verlauf kopiert.
+    const get = vi.spyOn(telemetry, 'get');
     telemetry.record(MAC, 'sensor', { AM2301: { Temperature: 21 } });
-    expect(await received).toMatchObject({ type: 'telemetry', deviceId: MAC, headline: [{ key: 'AM2301.Temperature' }] });
+    const message = await received;
+    expect(message).toMatchObject({ type: 'telemetry', deviceId: MAC, headline: [{ key: 'AM2301.Temperature' }] });
+    expect(message).toMatchObject({ updatedAt: telemetry.updatedAt(MAC) });
+    expect(get).not.toHaveBeenCalled();
     ws.terminate();
   });
 });

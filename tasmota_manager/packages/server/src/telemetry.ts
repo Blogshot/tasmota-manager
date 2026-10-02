@@ -26,6 +26,7 @@ const FIXED_UNITS: Record<string, string> = {
   TVOC: 'ppb',
   UptimeSec: 's',
   Heap: 'kB',
+  Sleep: 'ms',
 };
 
 interface DeviceData {
@@ -40,6 +41,8 @@ function unitFor(key: string, name: string, units: DeviceData['units']): string 
   if (key === 'Wifi.RSSI') return '%';
   if (name === 'Temperature' || name === 'DewPoint') return `°${units.temp}`;
   if (name === 'Pressure' || name === 'SeaPressure') return units.pressure;
+  // Ultraschallsensoren (SR04) melden die Distanz in cm, Laser-Sensoren (VL53Lxx u. a.) in mm.
+  if (name === 'Distance' && /^SR04/.test(key)) return 'cm';
   return FIXED_UNITS[name] ?? null;
 }
 
@@ -72,10 +75,16 @@ export class TelemetryStore extends EventEmitter<{ updated: [deviceId: string] }
     const data = this.devices.get(deviceId);
     if (!data) return { updatedAt: null, values: [], history: {} };
     return {
-      updatedAt: data.updatedAt === null ? null : new Date(data.updatedAt).toISOString(),
+      updatedAt: this.updatedAt(deviceId),
       values: [...data.values.values()],
       history: Object.fromEntries([...data.history.entries()].map(([k, v]) => [k, [...v]])),
     };
+  }
+
+  /** Zeitpunkt der letzten Aktualisierung, ohne den Verlauf zu kopieren. */
+  updatedAt(deviceId: string): string | null {
+    const at = this.devices.get(deviceId)?.updatedAt;
+    return at === undefined || at === null ? null : new Date(at).toISOString();
   }
 
   headline(deviceId: string): TelemetryValue[] {
