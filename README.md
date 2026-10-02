@@ -13,6 +13,7 @@ A Home Assistant app (add-on) that manages all Tasmota devices on your network f
 - **Device discovery** via MQTT (Tasmota discovery) and via HTTP network scan. MQTT is optional; without a broker the app works over HTTP only.
 - **Device overview** with status, firmware, signal strength, tags and filtering.
 - **Switch column:** devices with relays or lights show one button per output with its current state. A click toggles it right away.
+- **Telemetry:** a readings column with a one-hour chart per value, and a live telemetry tab in the device details.
 - **Staged changes:** apart from toggling, nothing is written to a device when you click. Every configuration change goes into a pending list first and is only written when you start the batch run.
 - **Batch configuration:** select several devices and set common settings in one go, such as PowerOnState, LED behaviour, sleep, MQTT, syslog, timezone and location.
 - **Device-type aware settings:** energy monitoring, lights, relays and climate sensors get their own settings; batch edits skip devices of another type.

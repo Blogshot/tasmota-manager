@@ -2,6 +2,7 @@
 
 ## 0.5.0
 
+- Telemetry: a new "Readings" column shows each device's main values (power, temperature, humidity), and a click opens a chart of the last hour. The new "Telemetry" tab in the device details shows all sensor and device values live, with sparklines. History is kept in memory for one hour and starts empty after an app restart.
 - Remove several devices at once: select them in the table and click "Remove". Only the entries in the app are removed; nothing changes on the devices.
 - Devices that Home Assistant does not know and that have not been seen for more than 7 days are marked as "stale", and the status filter can show only those, so leftovers and duplicates are easy to clean up.
 - Device details: empty settings fields now show the device's current value instead of "unchanged". Values that are not part of the stored status are read from the device, with a small loading spinner while that happens. Leaving a field empty still means "don't change".

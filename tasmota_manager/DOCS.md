@@ -11,6 +11,10 @@ Verwaltet alle Tasmota-Geräte im Netzwerk über eine moderne Oberfläche in der
 
 Geräte mit Relais oder Licht zeigen in der Spalte **Schalten** pro Ausgang einen Button mit dem aktuellen Zustand. Ein Klick schaltet sofort um. Das ist die einzige Aktion in der Tabelle, die nicht vorgemerkt wird. Bei MQTT-Geräten folgt die Anzeige auch Schaltvorgängen am Gerät oder in Home Assistant; bei reinen HTTP-Geräten erst beim nächsten Abfrageintervall.
 
+## Telemetrie
+
+Die Spalte **Messwerte** zeigt je Gerät bis zu zwei Hauptwerte (Leistung, Temperatur, Feuchte); ein Klick öffnet den Verlauf der letzten Stunde. Der Tab **Telemetrie** in der Detailansicht zeigt alle Sensor- und Gerätewerte live. MQTT-Geräte liefern Werte bei jeder Telemetrie-Nachricht, reine HTTP-Geräte im Abfrageintervall und alle 10 Sekunden, solange der Tab offen ist. Der Verlauf liegt nur im Arbeitsspeicher der App und beginnt nach einem Neustart leer; längere Verläufe bietet Home Assistant.
+
 ## Geräte aufräumen
 
 Die Geräteliste ist das eigene Inventar der App; sie wird nicht mit Home Assistant abgeglichen. Geräte, die Home Assistant nicht kennt und die seit über 7 Tagen nicht gesehen wurden, tragen das Kennzeichen **veraltet**, und der Statusfilter „Veraltet“ zeigt nur diese. Zum Entfernen mehrere Geräte in der Tabelle auswählen und **Entfernen** wählen, oder einzeln in der Detailansicht. Entfernt wird nur der Eintrag in der App. Kommt ein Gerät per MQTT-Discovery wieder, liegt auf dem Broker noch seine zurückgehaltene Discovery-Nachricht (`tasmota/discovery/<MAC>/config`).
