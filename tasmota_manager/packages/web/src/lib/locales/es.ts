@@ -305,4 +305,8 @@ export const es: Record<MessageKey, string> = {
   'telemetry.min': "Mín",
   'telemetry.max': "Máx",
   'telemetry.current': "Actual",
+  'signal.excellent': 'Excelente',
+  'signal.good': 'Bueno',
+  'signal.fair': 'Regular',
+  'signal.weak': 'Débil',
 };

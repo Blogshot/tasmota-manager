@@ -305,4 +305,8 @@ export const nl: Record<MessageKey, string> = {
   'telemetry.min': "Min",
   'telemetry.max': "Max",
   'telemetry.current': "Actueel",
+  'signal.excellent': 'Uitstekend',
+  'signal.good': 'Goed',
+  'signal.fair': 'Matig',
+  'signal.weak': 'Zwak',
 };

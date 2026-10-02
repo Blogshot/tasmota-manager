@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+- Wi-Fi signal is now color-coded from green (strong) to red (weak), with signal bars so it does not rely on color alone, and the level in words on hover. This applies to the Wi-Fi column, the Wi-Fi value in the telemetry tab and its one-hour chart. Values of offline devices are greyed out.
+
 ## 0.5.1
 
 - Home Assistant links: if Home Assistant lists several devices with the same MAC address (for example the Tasmota device and a network tracker from UniFi or a FRITZ!Box), the app now links the Tasmota device, so its automations, entities and area show up again.

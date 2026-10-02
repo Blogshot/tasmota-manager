@@ -76,4 +76,22 @@ describe('HistoryChart', () => {
     fireEvent.pointerMove(plot, { clientX: 310, clientY: 10 });
     expect(screen.getByRole('tooltip')).toHaveTextContent('20 W', { normalizeWhitespace: false });
   });
+
+  it('färbt den WLAN-Verlauf mit dem Signal-Verlauf ein', () => {
+    const { container } = renderWithProviders(
+      <HistoryChart points={recent([-50, -70, -90])} unit="dBm" label="Wifi Signal" now={NOW} colorScale="signal" />,
+    );
+    const gradients = container.querySelectorAll('svg[role="img"] linearGradient');
+    expect(gradients).toHaveLength(2);
+    expect(gradients[0]!.querySelectorAll('stop')).toHaveLength(5);
+    const line = container.querySelector('svg[role="img"] polyline');
+    expect(line?.getAttribute('class')).toContain('stroke-(--line-light)');
+    expect(line?.getAttribute('style')).toContain(`url(#${gradients[0]!.id})`);
+  });
+
+  it('zeichnet ohne Farbskala wie bisher in currentColor', () => {
+    const { container } = renderWithProviders(<HistoryChart points={recent([10, 30])} unit="W" label="Power" now={NOW} />);
+    expect(container.querySelector('svg[role="img"] linearGradient')).toBeNull();
+    expect(container.querySelector('svg[role="img"] polyline')?.getAttribute('stroke')).toBe('currentColor');
+  });
 });

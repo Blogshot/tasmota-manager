@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { api } from '@/lib/api';
 import { useLang, useT } from '@/lib/i18n';
+import { SignalStrength } from '../devices/signal';
 import { formatTelemetry, HistoryChart, Sparkline } from './charts';
 
 const DEVICE_GROUP = 'device';
@@ -26,6 +27,8 @@ function useSecondsSince(iso: string | null | undefined): number | null {
   if (!iso) return null;
   return Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
 }
+
+const isSignal = (v: TelemetryValue) => v.key === 'Wifi.Signal' && typeof v.value === 'number';
 
 /** Alle Messwerte eines Geräts mit Verlauf; Werte kommen per MQTT, ohne MQTT per HTTP-Auffrischung. */
 export function TelemetryTab({ device }: { device: Device }) {
@@ -60,11 +63,11 @@ export function TelemetryTab({ device }: { device: Device }) {
                   <Popover>
                     <PopoverTrigger asChild>
                       <button type="button" onClick={(e) => e.stopPropagation()} className="rounded px-0.5 text-right tabular-nums whitespace-nowrap underline-offset-2 hover:underline">
-                        {formatTelemetry(value.value, value.unit, lang)}
+                        {isSignal(value) ? <SignalStrength dbm={value.value as number} stale={!device.online} /> : formatTelemetry(value.value, value.unit, lang)}
                       </button>
                     </PopoverTrigger>
                     <PopoverContent onClick={(e) => e.stopPropagation()}>
-                      <HistoryChart points={data?.history[value.key] ?? []} unit={value.unit} label={value.name} />
+                      <HistoryChart points={data?.history[value.key] ?? []} unit={value.unit} label={value.name} colorScale={isSignal(value) ? 'signal' : undefined} />
                     </PopoverContent>
                   </Popover>
                   {/* Feste Breite auch ohne Verlauf, damit Werte und Sparklines aller Zeilen untereinander stehen. */}

@@ -1,5 +1,6 @@
-import { type PointerEvent, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type PointerEvent, useId, useMemo, useRef, useState } from 'react';
 import { useLang, useT } from '@/lib/i18n';
+import { SIGNAL_STOPS, signalColor } from '@/lib/signal';
 
 type Points = Array<[number, number]>;
 const NARROW = '\u202F';
@@ -35,10 +36,24 @@ export function Sparkline({ points }: { points: Points }) {
 
 const WINDOW_MS = 3_600_000;
 
-export function HistoryChart({ points: all, unit, label, now }: { points: Points; unit: string | null; label: string; now?: number }) {
+export function HistoryChart({
+  points: all,
+  unit,
+  label,
+  now,
+  colorScale,
+}: {
+  points: Points;
+  unit: string | null;
+  label: string;
+  now?: number;
+  /** 'signal': Linie nach WLAN-Stärke (dBm) einfärben. */
+  colorScale?: 'signal';
+}) {
   const t = useT();
   const lang = useLang();
   const ref = useRef<SVGSVGElement>(null);
+  const gradientId = `signal-${useId().replace(/[^\w-]/g, '')}`;
   const [hover, setHover] = useState<number | null>(null);
   const W = 320;
   const H = 140;
@@ -75,7 +90,28 @@ export function HistoryChart({ points: all, unit, label, now }: { points: Points
           onPointerLeave={() => setHover(null)}
         >
           <line x1={PAD} x2={W - PAD} y1={H - PAD} y2={H - PAD} className="stroke-border" strokeWidth={1} />
-          <polyline fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" points={points.map(([pt, v]) => `${s.x(pt)},${s.y(v)}`).join(' ')} />
+          {colorScale === 'signal' &&
+            (['light', 'dark'] as const).map((mode) => (
+              // Senkrechter Verlauf in Datenkoordinaten: jede Höhe bekommt die Farbe ihres dBm-Werts.
+              <linearGradient key={mode} id={`${gradientId}-${mode}`} gradientUnits="userSpaceOnUse" x1={0} x2={0} y1={s.y(SIGNAL_STOPS[0].dbm)} y2={s.y(SIGNAL_STOPS[SIGNAL_STOPS.length - 1]!.dbm)}>
+                {SIGNAL_STOPS.map((stop, i) => (
+                  // Bei konstanter Reihe ist die Skala flach; dann eine einheitliche Farbe.
+                  <stop key={stop.dbm} offset={i / (SIGNAL_STOPS.length - 1)} stopColor={s.v0 === s.v1 ? signalColor(s.v0, mode) : stop[mode]} />
+                ))}
+              </linearGradient>
+            ))}
+          <polyline
+            fill="none"
+            {...(colorScale === 'signal'
+              ? {
+                  className: 'stroke-(--line-light) dark:stroke-(--line-dark)',
+                  style: { '--line-light': `url(#${gradientId}-light)`, '--line-dark': `url(#${gradientId}-dark)` } as CSSProperties,
+                }
+              : { stroke: 'currentColor' })}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            points={points.map(([pt, v]) => `${s.x(pt)},${s.y(v)}`).join(' ')}
+          />
           <text x={PAD} y={PAD + 8} fontSize={10} className="fill-muted-foreground">
             {fmt(s.v1)}
           </text>

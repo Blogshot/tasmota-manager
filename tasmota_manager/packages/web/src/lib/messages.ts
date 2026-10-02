@@ -303,6 +303,10 @@ export const de = {
   'telemetry.min': "Min",
   'telemetry.max': "Max",
   'telemetry.current': "Aktuell",
+  'signal.excellent': 'Sehr gut',
+  'signal.good': 'Gut',
+  'signal.fair': 'Mäßig',
+  'signal.weak': 'Schwach',
 } as const;
 
 export type MessageKey = keyof typeof de;
@@ -612,4 +616,8 @@ export const en: Record<MessageKey, string> = {
   'telemetry.min': "Min",
   'telemetry.max': "Max",
   'telemetry.current': "Current",
+  'signal.excellent': 'Excellent',
+  'signal.good': 'Good',
+  'signal.fair': 'Fair',
+  'signal.weak': 'Weak',
 };

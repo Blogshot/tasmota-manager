@@ -10,6 +10,7 @@ import { HaAutomationLinks, HaEntityLinks } from './HaLinks';
 import { NameCell } from './NameCell';
 import { PowerCell } from './PowerCell';
 import { StatusDot } from './StatusDot';
+import { SignalStrength } from './signal';
 
 const dash = (v: string | number | null) => (v == null || v === '' ? '—' : v);
 
@@ -69,7 +70,7 @@ export function useDeviceColumns(): ColumnDef<Device>[] {
       {
         accessorKey: 'rssi',
         header: t('devices.col.rssi'),
-        cell: ({ row }) => (row.original.rssi == null ? '—' : `${row.original.rssi} dBm`),
+        cell: ({ row }) => (row.original.rssi == null ? '—' : <SignalStrength dbm={row.original.rssi} stale={!row.original.online} />),
       },
       {
         id: 'channels',

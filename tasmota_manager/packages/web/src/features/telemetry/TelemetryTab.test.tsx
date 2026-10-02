@@ -89,4 +89,21 @@ describe('TelemetryTab', () => {
     renderWithProviders(<TelemetryTab device={makeDevice({ id: 'A', channels: ['mqtt'] })} />);
     expect(await screen.findByText('Noch keine Telemetrie empfangen')).toBeInTheDocument();
   });
+
+  it('zeigt das WLAN-Signal mit Stufe und eingefärbtem Verlauf', async () => {
+    const now = Date.now();
+    vi.mocked(api.telemetry).mockResolvedValue({
+      updatedAt: new Date(now).toISOString(),
+      values: [{ key: 'Wifi.Signal', group: 'device', name: 'Wifi Signal', value: -63, unit: 'dBm' }],
+      history: { 'Wifi.Signal': [[now - 60_000, -70] as [number, number], [now - 30_000, -63] as [number, number]] },
+    });
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<TelemetryTab device={makeDevice({ id: 'A', channels: ['mqtt'] })} />);
+    const button = await screen.findByRole('button', { name: /^Gut \(-63.dBm\)$/ });
+    expect(button.querySelectorAll('[data-bar="on"]')).toHaveLength(3);
+    await user.click(button);
+    await screen.findByRole('img', { name: 'Wifi Signal' });
+    expect(container.ownerDocument.querySelectorAll('svg[role="img"] linearGradient').length).toBe(2);
+  });
 });
+
