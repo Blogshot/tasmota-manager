@@ -19,6 +19,7 @@ vi.mock('@/lib/api', () => ({
     stage: vi.fn(),
     rules: vi.fn(),
     timers: vi.fn(),
+    setting: vi.fn(),
   },
   ApiError: class extends Error {},
 }));
@@ -36,6 +37,8 @@ describe('Detail-Tabs', () => {
       { index: 3, enabled: false, text: '', length: 0, free: 511 },
     ]);
     vi.mocked(api.timers).mockResolvedValue({ enabled: true, timers: Array.from({ length: 16 }, () => DEFAULT_TIMER) });
+    vi.mocked(api.setting).mockReset();
+    vi.mocked(api.setting).mockImplementation(async (_id, key) => ({ value: key === 'NtpServer1' ? 'de.pool.ntp.org' : key === 'SetOption65' ? '1' : null }));
   });
 
   const open = async (tab: string) => {
@@ -48,12 +51,30 @@ describe('Detail-Tabs', () => {
   it('merkt Einstellungen eines Geräts vor und zeigt den aktuellen Wert', async () => {
     const user = await open('Einstellungen');
     const select = await screen.findByLabelText('Zustand nach Stromausfall');
-    expect(select).toHaveDisplayValue('unverändert (3)');
+    expect(select).toHaveDisplayValue('3 – Letzter Zustand (Standard) (aktuell)');
     await user.selectOptions(select, '1');
     await user.click(screen.getByRole('button', { name: 'Vormerken' }));
     await waitFor(() =>
       expect(api.stage).toHaveBeenCalledWith({ deviceIds: ['A'], settings: { PowerOnState: '1' }, source: 'detail' }),
     );
+  });
+
+  it('zeigt fehlende Werte live vom Gerät statt „unverändert“', async () => {
+    await open('Einstellungen');
+    const ntp = await screen.findByLabelText('NTP-Server 1');
+    await waitFor(() => expect(ntp).toHaveAttribute('placeholder', 'de.pool.ntp.org'));
+    await waitFor(() => expect(screen.getByLabelText(/SetOption65/)).toHaveDisplayValue('An (aktuell)'));
+    // Bereits aus dem Status bekannte Werte werden nicht erneut gelesen, Passwörter nie.
+    expect(api.setting).not.toHaveBeenCalledWith('A', 'PowerOnState');
+    expect(api.setting).not.toHaveBeenCalledWith('A', 'MqttPassword');
+  });
+
+  it('zeigt einen Ladespinner, solange ein Wert gelesen wird', async () => {
+    vi.mocked(api.setting).mockImplementation(() => new Promise(() => {}));
+    await open('Einstellungen');
+    await screen.findByLabelText('NTP-Server 1');
+    expect(screen.getAllByRole('status', { name: 'Wird geladen' }).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('NTP-Server 1')).toHaveAttribute('placeholder', '');
   });
 
   it('bearbeitet Rules und merkt nur Geänderte vor', async () => {

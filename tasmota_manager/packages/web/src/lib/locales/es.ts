@@ -102,6 +102,8 @@ export const es: Record<MessageKey, string> = {
   'edit.stage': 'Dejar pendiente',
   'edit.forDevices': 'Para {count} dispositivos. Los campos vacíos no se modifican.',
   'edit.unchanged': 'sin cambios',
+  'edit.current': 'actual',
+  'common.loading': 'Cargando',
   'edit.nothing': 'No se ha introducido ningún cambio',
   'edit.commands.label': 'Comandos',
   'edit.commands.hint': 'Un comando por línea. Variables: {{name}}, {{hostname}}, {{topic}}, {{mac}}, {{mac6}}, {{ip}}',

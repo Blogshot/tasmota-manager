@@ -102,6 +102,8 @@ export const it: Record<MessageKey, string> = {
   'edit.stage': 'Metti in sospeso',
   'edit.forDevices': 'Per {count} dispositivi. I campi vuoti restano invariati.',
   'edit.unchanged': 'invariato',
+  'edit.current': 'attuale',
+  'common.loading': 'Caricamento',
   'edit.nothing': 'Nessuna modifica inserita',
   'edit.commands.label': 'Comandi',
   'edit.commands.hint': 'Un comando per riga. Segnaposto: {{name}}, {{hostname}}, {{topic}}, {{mac}}, {{mac6}}, {{ip}}',

@@ -52,6 +52,7 @@ export function applyMessage(qc: QueryClient, msg: WsMessage): void {
       qc.setQueryData(['job'], { job: msg.job });
       void qc.invalidateQueries({ queryKey: ['changes'] });
       void qc.invalidateQueries({ queryKey: ['devices'] });
+      void qc.invalidateQueries({ queryKey: ['setting'] });
       break;
   }
 }

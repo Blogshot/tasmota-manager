@@ -1,11 +1,12 @@
 import { type Device, type SettingDef, settingApplies } from '@tm/shared';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { HaFieldSuggestions } from '@/features/changes/HaFieldSuggestions';
 import { LocationTools } from '@/features/location/LocationTools';
 import { validationText } from '@/lib/errors';
-import { useT } from '@/lib/i18n';
+import { type Translate, useT } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/messages';
 import { selectClass } from '@/lib/styles';
 
@@ -20,15 +21,17 @@ interface Props {
   values: FieldValues;
   errors: Record<string, string>;
   onChange: (key: string, value: string) => void;
-  /** Aktuelle Werte eines Geräts (Detailansicht); erscheinen als Platzhalter. */
+  /** Aktuelle Werte eines Geräts (Detailansicht); erscheinen statt „unverändert“ im leeren Feld. */
   current?: Record<string, string | null>;
+  /** Felder, deren aktueller Wert gerade vom Gerät gelesen wird. */
+  loading?: ReadonlySet<string>;
   idPrefix: string;
 }
 
 const POWER_ON_STATES = ['0', '1', '2', '3', '4', '5'] as const;
 
 /** Leere Felder bedeuten „unverändert“. */
-export function SettingsFields({ defs, devices, values, errors, onChange, onFastRule, current, idPrefix }: Props) {
+export function SettingsFields({ defs, devices, values, errors, onChange, onFastRule, current, loading, idPrefix }: Props) {
   const t = useT();
   const applying = (def: SettingDef) => devices.filter((d) => settingApplies(def, d.capabilities)).length;
   const visible = defs.filter((d) => applying(d) > 0);
@@ -63,8 +66,15 @@ export function SettingsFields({ defs, devices, values, errors, onChange, onFast
               const id = `${idPrefix}-${def.key}`;
               const value = values[def.key] ?? '';
               const currentValue = current?.[def.key] ?? null;
-              const unchanged = currentValue !== null ? `${t('edit.unchanged')} (${currentValue})` : t('edit.unchanged');
+              const isLoading = loading?.has(def.key) ?? false;
               const isSelect = def.kind === 'bool' || def.key === 'PowerOnState';
+              // Leeres Feld = nicht ändern; angezeigt wird der aktuelle Wert des Geräts, sofern bekannt.
+              const placeholder = isLoading ? '' : (currentValue ?? t('edit.unchanged'));
+              const emptyOption = isLoading
+                ? ''
+                : currentValue !== null
+                  ? `${optionLabel(def, currentValue, t)} (${t('edit.current')})`
+                  : t('edit.unchanged');
               return (
                 <div key={def.key} className="space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
@@ -75,9 +85,10 @@ export function SettingsFields({ defs, devices, values, errors, onChange, onFast
                       </span>
                     )}
                   </div>
+                  <div className="relative">
                   {isSelect ? (
                     <select id={id} className={`${selectClass} w-full`} value={value} onChange={(e) => onChange(def.key, e.target.value)}>
-                      <option value="">{unchanged}</option>
+                      <option value="">{emptyOption}</option>
                       {def.kind === 'bool' ? (
                         <>
                           <option value="1">{t('bool.on')}</option>
@@ -97,10 +108,18 @@ export function SettingsFields({ defs, devices, values, errors, onChange, onFast
                       type={def.writeOnly ? 'password' : 'text'}
                       autoComplete={def.writeOnly ? 'new-password' : 'off'}
                       value={value}
-                      placeholder={unchanged}
+                      placeholder={placeholder}
                       onChange={(e) => onChange(def.key, e.target.value)}
                     />
                   )}
+                  {isLoading && value === '' && (
+                    <Loader2
+                      role="status"
+                      aria-label={t('common.loading')}
+                      className={`pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground left-3`}
+                    />
+                  )}
+                  </div>
                   <HaFieldSuggestions
                     fieldKey={def.key}
                     visibleKeys={visibleKeys}
@@ -122,6 +141,17 @@ export function SettingsFields({ defs, devices, values, errors, onChange, onFast
       ))}
     </div>
   );
+}
+
+/** Anzeigetext eines aktuellen Werts in Auswahlfeldern (Ein/Aus, PowerOnState). */
+function optionLabel(def: SettingDef, value: string, t: Translate): string {
+  if (def.kind === 'bool') {
+    const on = ['1', 'ON', 'TRUE'].includes(value.trim().toUpperCase());
+    const off = ['0', 'OFF', 'FALSE'].includes(value.trim().toUpperCase());
+    return on ? t('bool.on') : off ? t('bool.off') : value;
+  }
+  if (def.key === 'PowerOnState' && /^[0-5]$/.test(value.trim())) return t(`powerOn.${value.trim()}` as MessageKey);
+  return value;
 }
 
 function TelePeriodNotes({ value, energy, onFastRule }: { value: string; energy: boolean; onFastRule?: () => void }) {

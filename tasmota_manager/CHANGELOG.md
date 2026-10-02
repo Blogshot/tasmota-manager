@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- Device details: empty settings fields now show the device's current value instead of "unchanged". Values that are not part of the stored status are read from the device, with a small loading spinner while that happens. Leaving a field empty still means "don't change".
+
 ## 0.4.0
 
 - Device-type specific settings: energy monitoring (PowerDelta, decimals), lights (fade, speed, dimmer range, SetOption20), relays (SetOption0, interlock) and climate sensors (decimals, °F, offsets).

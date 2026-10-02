@@ -102,6 +102,8 @@ export const nl: Record<MessageKey, string> = {
   'edit.stage': 'Klaarzetten',
   'edit.forDevices': 'Voor {count} apparaten. Lege velden blijven ongewijzigd.',
   'edit.unchanged': 'ongewijzigd',
+  'edit.current': 'huidig',
+  'common.loading': 'Bezig met laden',
   'edit.nothing': 'Geen wijzigingen ingevoerd',
   'edit.commands.label': 'Commando’s',
   'edit.commands.hint': 'Eén commando per regel. Plaatshouders: {{name}}, {{hostname}}, {{topic}}, {{mac}}, {{mac6}}, {{ip}}',
