@@ -10,11 +10,11 @@ export function formatTelemetry(value: number | string, unit: string | null, lan
   return unit ? `${text}${NARROW}${unit}` : text;
 }
 
-function scale(points: Points, width: number, height: number, pad: number) {
+function scale(points: Points, width: number, height: number, pad: number, domain?: [number, number]) {
   const ts = points.map(([t]) => t);
   const vs = points.map(([, v]) => v);
-  const t0 = Math.min(...ts);
-  const t1 = Math.max(...ts);
+  const t0 = domain ? domain[0] : Math.min(...ts);
+  const t1 = domain ? domain[1] : Math.max(...ts);
   const v0 = Math.min(...vs);
   const v1 = Math.max(...vs);
   const x = (t: number) => (t1 === t0 ? width / 2 : pad + ((t - t0) / (t1 - t0)) * (width - 2 * pad));
@@ -33,7 +33,9 @@ export function Sparkline({ points }: { points: Points }) {
   );
 }
 
-export function HistoryChart({ points, unit, label }: { points: Points; unit: string | null; label: string }) {
+const WINDOW_MS = 3_600_000;
+
+export function HistoryChart({ points: all, unit, label, now }: { points: Points; unit: string | null; label: string; now?: number }) {
   const t = useT();
   const lang = useLang();
   const ref = useRef<SVGSVGElement>(null);
@@ -41,7 +43,9 @@ export function HistoryChart({ points, unit, label }: { points: Points; unit: st
   const W = 320;
   const H = 140;
   const PAD = 8;
-  const s = useMemo(() => (points.length >= 2 ? scale(points, W, H, PAD) : null), [points]);
+  const end = now ?? Date.now();
+  const points = useMemo(() => all.filter(([pt]) => pt >= end - WINDOW_MS && pt <= end), [all, end]);
+  const s = useMemo(() => (points.length >= 2 ? scale(points, W, H, PAD, [end - WINDOW_MS, end]) : null), [points, end]);
   const fmt = (v: number) => formatTelemetry(v, unit, lang);
   if (!s) return <p className="text-sm text-muted-foreground">{t('telemetry.noHistory')}</p>;
   const values = points.map(([, v]) => v);
@@ -72,6 +76,12 @@ export function HistoryChart({ points, unit, label }: { points: Points; unit: st
         >
           <line x1={PAD} x2={W - PAD} y1={H - PAD} y2={H - PAD} className="stroke-border" strokeWidth={1} />
           <polyline fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" points={points.map(([pt, v]) => `${s.x(pt)},${s.y(v)}`).join(' ')} />
+          <text x={PAD} y={PAD + 8} fontSize={10} className="fill-muted-foreground">
+            {fmt(s.v1)}
+          </text>
+          <text x={PAD} y={H - PAD - 4} fontSize={10} className="fill-muted-foreground">
+            {fmt(s.v0)}
+          </text>
           {hovered && (
             <>
               <line x1={s.x(hovered[0])} x2={s.x(hovered[0])} y1={PAD} y2={H - PAD} className="stroke-muted-foreground" strokeWidth={1} />
