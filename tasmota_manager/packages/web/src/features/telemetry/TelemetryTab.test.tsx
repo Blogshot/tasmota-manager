@@ -34,6 +34,19 @@ describe('TelemetryTab', () => {
     expect(screen.getByRole('button', { name: /^21,3 °C$/ })).toBeInTheDocument();
   });
 
+  it('zeigt den Wert links und die Sparkline rechts in einer Spalte fester Breite', async () => {
+    vi.mocked(api.telemetry).mockResolvedValue(sample());
+    const { container } = renderWithProviders(<TelemetryTab device={makeDevice({ id: 'A', channels: ['mqtt'] })} />);
+    const button = await screen.findByRole('button', { name: /21,3/ });
+    const row = button.closest('li')!;
+    const svg = row.querySelector('svg')!;
+    expect(button.compareDocumentPosition(svg) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Auch ohne Verlauf bleibt der Platz der Sparkline reserviert, damit die Werte untereinander stehen.
+    const slots = container.querySelectorAll('[data-slot="sparkline"]');
+    expect(slots).toHaveLength(2);
+    expect(slots[0]!.className).toBe(slots[1]!.className);
+  });
+
   it('öffnet beim Klick auf einen Wert das Diagramm', async () => {
     vi.mocked(api.telemetry).mockResolvedValue(sample());
     const user = userEvent.setup();

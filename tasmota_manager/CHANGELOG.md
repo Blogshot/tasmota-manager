@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- Telemetry tab: values now come first and the sparklines sit in a fixed column on the right, so values and sparklines line up across rows.
+
 ## 0.5.0
 
 - Telemetry: a new "Readings" column shows each device's main values (power, temperature, humidity), and a click opens a chart of the last hour. The new "Telemetry" tab in the device details shows all sensor and device values live, with sparklines. History is kept in memory for one hour and starts empty after an app restart.

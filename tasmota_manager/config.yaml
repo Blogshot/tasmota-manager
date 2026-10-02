@@ -1,5 +1,5 @@
 name: Tasmota Manager
-version: "0.5.0"
+version: "0.5.1"
 slug: tasmota_manager
 description: Verwaltung und Batch-Konfiguration aller Tasmota-Geräte im Netzwerk
 arch:

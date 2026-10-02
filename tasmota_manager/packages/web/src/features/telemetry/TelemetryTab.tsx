@@ -57,10 +57,9 @@ export function TelemetryTab({ device }: { device: Device }) {
               <li key={value.key} className="flex items-center justify-between gap-3 px-3 py-1.5 text-sm">
                 <span className="min-w-0 truncate text-muted-foreground">{value.name}</span>
                 <span className="flex items-center gap-3">
-                  <Sparkline points={data?.history[value.key] ?? []} />
                   <Popover>
                     <PopoverTrigger asChild>
-                      <button type="button" onClick={(e) => e.stopPropagation()} className="rounded px-0.5 whitespace-nowrap underline-offset-2 hover:underline">
+                      <button type="button" onClick={(e) => e.stopPropagation()} className="rounded px-0.5 text-right tabular-nums whitespace-nowrap underline-offset-2 hover:underline">
                         {formatTelemetry(value.value, value.unit, lang)}
                       </button>
                     </PopoverTrigger>
@@ -68,6 +67,10 @@ export function TelemetryTab({ device }: { device: Device }) {
                       <HistoryChart points={data?.history[value.key] ?? []} unit={value.unit} label={value.name} />
                     </PopoverContent>
                   </Popover>
+                  {/* Feste Breite auch ohne Verlauf, damit Werte und Sparklines aller Zeilen untereinander stehen. */}
+                  <span data-slot="sparkline" className="flex w-20 shrink-0 justify-end">
+                    <Sparkline points={data?.history[value.key] ?? []} />
+                  </span>
                 </span>
               </li>
             ))}
