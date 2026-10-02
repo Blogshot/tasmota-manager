@@ -1,5 +1,6 @@
 import type { Logger } from 'pino';
 import type { DeviceRegistry } from '../registry';
+import type { TelemetryStore } from '../telemetry';
 import { parseState, parseStatus0 } from '../tasmota/parse';
 import type { MqttTarget, MqttTransport } from '../transport/mqtt';
 
@@ -8,6 +9,7 @@ export class MqttDiscovery {
     private readonly mqtt: MqttTransport,
     private readonly registry: DeviceRegistry,
     private readonly log: Logger,
+    private readonly telemetry?: TelemetryStore,
   ) {}
 
   start(): void {
@@ -35,7 +37,13 @@ export class MqttDiscovery {
       const device = this.registry.findByTopic(topic);
       if (!device) return;
       this.registry.updateRuntime(device.id, parseState(payload));
+      this.telemetry?.record(device.id, 'state', payload);
       if (!device.channels.includes('mqtt')) this.registry.markReachable(device.id, 'mqtt');
+    });
+
+    this.mqtt.on('sensor', (topic, payload) => {
+      const device = this.registry.findByTopic(topic);
+      if (device) this.telemetry?.record(device.id, 'sensor', payload);
     });
 
     this.mqtt.on('power', (topic, power) => {

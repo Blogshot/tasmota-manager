@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Device, WsMessage } from '@tm/shared';
+import type { Device, DeviceTelemetry, WsMessage } from '@tm/shared';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanupApps, setupApp as setup } from '../../test/appSetup';
@@ -132,6 +132,51 @@ describe('Einstellungen, Status und Scan', () => {
     settings.update({ scanCidrs: ['127.0.0.1/32'] });
     expect((await app.inject({ method: 'POST', url: '/api/scan' })).statusCode).toBe(202);
     await waitFor(() => registry.get('AABBCC112233'));
+  });
+});
+
+describe('Telemetrie-API', () => {
+  const MAC = 'AABBCC112233';
+  const sensors = { AM2301: { Temperature: 21 } };
+
+  it('liefert beim Auffrischen die Sensorwerte des Geräts', async () => {
+    const { app } = await setup({ fake: { sensors } });
+    await addFake(app);
+    const res = await app.inject(`/api/devices/${MAC}/telemetry?refresh=1`);
+    expect(res.statusCode).toBe(200);
+    expect(res.json<DeviceTelemetry>().values).toContainEqual(expect.objectContaining({ key: 'AM2301.Temperature', value: 21 }));
+    const summary = await app.inject('/api/telemetry');
+    expect(summary.json()).toMatchObject({ [MAC]: [{ key: 'AM2301.Temperature' }] });
+  });
+
+  it('liefert bei nicht erreichbarem Gerät den letzten Stand', async () => {
+    const { app, fake } = await setup({ fake: { sensors } });
+    await addFake(app);
+    await app.inject(`/api/devices/${MAC}/telemetry?refresh=1`);
+    await fake.stop();
+    const res = await app.inject(`/api/devices/${MAC}/telemetry?refresh=1`);
+    expect(res.statusCode).toBe(200);
+    expect(res.json<DeviceTelemetry>().values.map((v) => v.key)).toContain('AM2301.Temperature');
+  });
+
+  it('vergisst die Telemetrie gelöschter Geräte und kennt unbekannte nicht', async () => {
+    const { app } = await setup({ fake: { sensors } });
+    await addFake(app);
+    await app.inject(`/api/devices/${MAC}/telemetry?refresh=1`);
+    expect((await app.inject({ method: 'DELETE', url: `/api/devices/${MAC}` })).statusCode).toBe(204);
+    expect(await app.inject('/api/telemetry').then((r) => r.json())).not.toHaveProperty(MAC);
+    expect((await app.inject('/api/devices/UNBEKANNT/telemetry')).statusCode).toBe(404);
+  });
+
+  it('sendet Telemetrie per WebSocket mit Kopfwerten', async () => {
+    const { app, telemetry, hub } = await setup();
+    await app.ready();
+    const ws = await app.injectWS('/api/ws');
+    await waitFor(() => hub.size === 1);
+    const received = new Promise<WsMessage>((resolve) => ws.on('message', (data) => resolve(JSON.parse(data.toString()))));
+    telemetry.record(MAC, 'sensor', { AM2301: { Temperature: 21 } });
+    expect(await received).toMatchObject({ type: 'telemetry', deviceId: MAC, headline: [{ key: 'AM2301.Temperature' }] });
+    ws.terminate();
   });
 });
 

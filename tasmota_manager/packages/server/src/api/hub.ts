@@ -6,6 +6,7 @@ import type { HttpScanner } from '../discovery/scanner';
 import type { DeviceEnricher } from '../enrich';
 import type { HaClient } from '../ha/client';
 import type { DeviceRegistry } from '../registry';
+import type { TelemetryStore } from '../telemetry';
 import type { MqttTransport } from '../transport/mqtt';
 
 export class WsHub {
@@ -42,10 +43,21 @@ export function wireLiveEvents(deps: {
   runner: ApplyRunner;
   ha: HaClient | null;
   enricher: DeviceEnricher;
+  telemetry?: TelemetryStore;
 }): void {
   const { hub } = deps;
   deps.registry.on('updated', (device) => hub.broadcast({ type: 'device:updated', device: deps.enricher.one(device.id) ?? device }));
   deps.registry.on('removed', (id) => hub.broadcast({ type: 'device:removed', id }));
+  deps.registry.on('removed', (id) => deps.telemetry?.remove(id));
+  deps.telemetry?.on('updated', (deviceId) => {
+    const t = deps.telemetry?.get(deviceId);
+    hub.broadcast({
+      type: 'telemetry',
+      deviceId,
+      updatedAt: t?.updatedAt ?? new Date().toISOString(),
+      headline: deps.telemetry?.headline(deviceId) ?? [],
+    });
+  });
   deps.scanner.on('progress', (progress) => hub.broadcast({ type: 'scan:progress', ...progress }));
   deps.scanner.on('done', ({ found }) => hub.broadcast({ type: 'scan:done', found }));
   deps.mqtt?.on('status', (status) => hub.broadcast({ type: 'mqtt:status', status }));

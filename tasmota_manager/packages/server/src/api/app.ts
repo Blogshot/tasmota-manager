@@ -11,6 +11,7 @@ import type { DeviceEnricher } from '../enrich';
 import type { DeviceGateway } from '../gateway';
 import type { DeviceRegistry } from '../registry';
 import type { SettingsStore } from '../settings';
+import type { TelemetryStore } from '../telemetry';
 import { registerChangeRoutes } from './changes';
 import { registerDeviceRoutes } from './devices';
 import { registerFastRuleRoutes } from './fastRule';
@@ -29,6 +30,7 @@ export interface AppDeps {
   runner: ApplyRunner;
   jobs: JobRepo;
   enricher: DeviceEnricher;
+  telemetry?: TelemetryStore;
   mqttStatus: () => MqttStatus;
   /** Standort aus Home Assistant für Koordinaten-Vorschläge */
   haLocation?: () => HaLocation | null;

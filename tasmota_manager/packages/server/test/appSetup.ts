@@ -11,6 +11,7 @@ import { DeviceEnricher } from '../src/enrich';
 import { DeviceGateway } from '../src/gateway';
 import { DeviceRegistry } from '../src/registry';
 import { SettingsStore, defaultSettings } from '../src/settings';
+import { TelemetryStore } from '../src/telemetry';
 import { HttpTransport } from '../src/transport/http';
 import { FakeTasmota, type FakeTasmotaOptions } from './fakes/fakeTasmota';
 import { silentLogger, testDb } from './helpers';
@@ -57,7 +58,8 @@ export async function setupApp(opts: SetupOptions = {}) {
   const runner = new ApplyRunner({ store, jobs, registry, ops, concurrency: () => 5, log: silentLogger });
   const enricher = new DeviceEnricher(registry, store, null);
   const hub = new WsHub();
-  wireLiveEvents({ hub, registry, scanner, mqtt: null, store, runner, ha: null, enricher });
+  const telemetry = new TelemetryStore();
+  wireLiveEvents({ hub, registry, scanner, mqtt: null, store, runner, ha: null, enricher, telemetry });
   const app: FastifyInstance = await buildApp({
     registry,
     gateway,
@@ -68,6 +70,7 @@ export async function setupApp(opts: SetupOptions = {}) {
     runner,
     jobs,
     enricher,
+    telemetry,
     version: 'test',
     mqttStatus: () => 'disabled',
     haLocation: () => opts.haLocation ?? null,
@@ -80,5 +83,5 @@ export async function setupApp(opts: SetupOptions = {}) {
     await app.close();
     await fake.stop();
   });
-  return { app, registry, settings, hub, fake, store, runner, jobs };
+  return { app, registry, settings, hub, fake, store, runner, jobs, telemetry };
 }

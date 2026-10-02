@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import type { DeviceRegistry } from '../registry';
 import { TransportError } from '../transport/errors';
 import type { HttpSender } from '../transport/http';
+import type { TelemetryStore } from '../telemetry';
 import { mapLimit } from '../util/mapLimit';
 import { identifyHost } from './identify';
 
@@ -15,6 +16,7 @@ export interface PollerDeps {
   intervalSec: () => number;
   log: Logger;
   timeoutMs?: number;
+  telemetry?: TelemetryStore;
 }
 
 /** Fragt Geräte ohne MQTT-Kanal regelmäßig per HTTP ab. */
@@ -50,7 +52,7 @@ export class HttpPoller {
 
   private async pollDevice(device: Device): Promise<void> {
     try {
-      await identifyHost(this.deps.http, this.deps.registry, device.ip ?? '', this.deps.passwordFor(device.id), this.deps.timeoutMs ?? 5000);
+      await identifyHost(this.deps.http, this.deps.registry, device.ip ?? '', this.deps.passwordFor(device.id), this.deps.timeoutMs ?? 5000, this.deps.telemetry);
     } catch (err) {
       // Das Gerät kann während der Abfrage gelöscht oder aufgelöst worden sein.
       if (!this.deps.registry.get(device.id)) return;

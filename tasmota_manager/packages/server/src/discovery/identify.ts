@@ -1,5 +1,6 @@
 import type { Device } from '@tm/shared';
 import type { DeviceRegistry } from '../registry';
+import type { TelemetryStore } from '../telemetry';
 import { parseModule, parseStatus0 } from '../tasmota/parse';
 import { TransportError } from '../transport/errors';
 import type { HttpSender } from '../transport/http';
@@ -11,6 +12,7 @@ export async function identifyHost(
   host: string,
   password: string | null,
   timeoutMs?: number,
+  telemetry?: TelemetryStore,
 ): Promise<Device> {
   const payload = await http.send({ host, password }, 'Status 0', timeoutMs);
   const info = parseStatus0(payload);
@@ -30,5 +32,8 @@ export async function identifyHost(
   } catch {
     // Sensoren sind optional (nur für Namensvorschläge).
   }
-  return registry.upsert(info, { channel: 'http', statusJson: payload, sensorsJson: sensors });
+  const device = registry.upsert(info, { channel: 'http', statusJson: payload, sensorsJson: sensors });
+  telemetry?.record(device.id, 'state', payload);
+  if (sensors !== undefined) telemetry?.record(device.id, 'sensor', sensors);
+  return device;
 }

@@ -21,6 +21,7 @@ import { haSuggestionsFrom } from './haSuggestions';
 import { createLogger } from './logger';
 import { DeviceRegistry } from './registry';
 import { SettingsStore, defaultSettings } from './settings';
+import { TelemetryStore } from './telemetry';
 import { HttpTransport } from './transport/http';
 import { MqttTransport } from './transport/mqtt';
 
@@ -60,12 +61,14 @@ export async function startServer(config: AppConfig, overrides: StartOverrides =
     (id) => gateway.passwordFor(id),
     () => settings.get().globalPassword || null,
   );
+  const telemetry = new TelemetryStore();
   const poller = new HttpPoller({
     http,
     registry,
     passwordFor: (id) => gateway.passwordFor(id),
     intervalSec: () => settings.get().pollIntervalSec,
     log,
+    telemetry,
   });
   const hub = new WsHub();
   const store = new PendingStore(db, registry);
@@ -83,11 +86,11 @@ export async function startServer(config: AppConfig, overrides: StartOverrides =
   });
   const ha = config.ha ? new HaClient(config.ha, log) : null;
   const enricher = new DeviceEnricher(registry, store, ha, () => resolveLanguage(settings.get().language, ha?.language));
-  wireLiveEvents({ hub, registry, scanner, mqtt, store, runner, ha, enricher });
+  wireLiveEvents({ hub, registry, scanner, mqtt, store, runner, ha, enricher, telemetry });
   ha?.start();
 
   if (mqtt) {
-    new MqttDiscovery(mqtt, registry, log).start();
+    new MqttDiscovery(mqtt, registry, log, telemetry).start();
     mqtt.start();
   }
   poller.start();
@@ -103,6 +106,7 @@ export async function startServer(config: AppConfig, overrides: StartOverrides =
     runner,
     jobs,
     enricher,
+    telemetry,
     version: overrides.version ?? 'dev',
     mqttStatus: () => mqtt?.status ?? 'disabled',
     haLocation: () => ha?.location ?? null,

@@ -17,7 +17,8 @@ import { notFound, parseBody } from './validate';
 
 type IdParams = { Params: { id: string } };
 
-export function registerDeviceRoutes(app: FastifyInstance, { registry, gateway, scanner, enricher }: AppDeps): void {
+export function registerDeviceRoutes(app: FastifyInstance, deps: AppDeps): void {
+  const { registry, gateway, scanner, enricher } = deps;
   app.get('/api/devices', async () => enricher.all());
 
   app.post('/api/devices', async (req, reply) => {
@@ -55,6 +56,27 @@ export function registerDeviceRoutes(app: FastifyInstance, { registry, gateway, 
     if (!registry.remove(req.params.id)) return reply.code(404).send(notFound());
     return reply.code(204).send();
   });
+
+  app.get<{ Params: { id: string }; Querystring: { refresh?: string } }>('/api/devices/:id/telemetry', async (req, reply) => {
+    const device = registry.get(req.params.id);
+    if (!device) return reply.code(404).send(notFound());
+    if (req.query.refresh === '1' && !device.channels.includes('mqtt')) {
+      // Nur lesen; ein nicht erreichbares Gerät liefert den letzten Stand.
+      for (const [command, source] of [
+        ['Status 10', 'sensor'],
+        ['Status 11', 'state'],
+      ] as const) {
+        try {
+          deps.telemetry?.record(device.id, source, (await gateway.send(device.id, command)).response);
+        } catch {
+          // letzter Stand bleibt
+        }
+      }
+    }
+    return deps.telemetry?.get(device.id) ?? { updatedAt: null, values: [], history: {} };
+  });
+
+  app.get('/api/telemetry', async () => deps.telemetry?.summary() ?? {});
 
   app.post<IdParams>('/api/devices/:id/command', async (req, reply) => {
     const body = parseBody(CommandRequestSchema, req.body, reply);

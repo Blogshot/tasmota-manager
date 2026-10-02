@@ -27,6 +27,7 @@ type MqttEvents = {
   discovery: [DeviceInfo];
   lwt: [topic: string, online: boolean];
   state: [topic: string, payload: unknown];
+  sensor: [topic: string, payload: unknown];
   /** Schaltvorgang, egal wer ihn ausgelöst hat (App, Taster, Home Assistant). */
   power: [topic: string, power: Record<number, boolean>];
 };
@@ -178,6 +179,7 @@ export class MqttTransport extends EventEmitter<MqttEvents> implements MqttSende
         const suffix = topic.slice(watch.tele.length);
         if (suffix === 'LWT') this.emit('lwt', watch.topic, text === 'Online');
         else if (suffix === 'STATE') this.emit('state', watch.topic, safeJson(text));
+        else if (suffix === 'SENSOR') this.emit('sensor', watch.topic, safeJson(text));
         return;
       }
       if (topic.startsWith(watch.stat)) {

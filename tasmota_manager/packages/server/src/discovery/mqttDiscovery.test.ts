@@ -3,6 +3,7 @@ import { startBroker } from '../../test/fakes/broker';
 import { FakeTasmota } from '../../test/fakes/fakeTasmota';
 import { silentLogger, testDb, waitFor } from '../../test/helpers';
 import { DeviceRegistry } from '../registry';
+import { TelemetryStore } from '../telemetry';
 import { MqttTransport } from '../transport/mqtt';
 import { MqttDiscovery } from './mqttDiscovery';
 
@@ -13,15 +14,17 @@ describe('MqttDiscovery', () => {
   let mqtt: MqttTransport;
   let registry: DeviceRegistry;
   let fake: FakeTasmota;
+  let telemetry: TelemetryStore;
 
   beforeEach(async () => {
     broker = await startBroker();
     registry = new DeviceRegistry(testDb());
     mqtt = new MqttTransport({ url: broker.url, timeoutMs: 1000 });
-    new MqttDiscovery(mqtt, registry, silentLogger).start();
+    telemetry = new TelemetryStore();
+    new MqttDiscovery(mqtt, registry, silentLogger, telemetry).start();
     mqtt.start();
     await waitFor(() => mqtt.status === 'connected');
-    fake = new FakeTasmota({ mac: MAC, name: 'Keller', topic: 'keller' });
+    fake = new FakeTasmota({ mac: MAC, name: 'Keller', topic: 'keller', sensors: { AM2301: { Temperature: 21 } } });
   });
 
   afterEach(async () => {
@@ -52,6 +55,17 @@ describe('MqttDiscovery', () => {
     await fake.publishState();
     await waitFor(() => registry.get(MAC)?.rssi === -55);
     expect(registry.get(MAC)?.uptimeSec).toBe(200);
+  });
+
+  it('sammelt STATE- und SENSOR-Telemetrie im Speicher', async () => {
+    await fake.connectMqtt(broker.url);
+    await waitFor(() => registry.get(MAC)?.online && registry.get(MAC)?.chip);
+    await fake.publishState();
+    await fake.publishSensor();
+    await waitFor(() => telemetry.get(MAC).values.some((v) => v.key === 'AM2301.Temperature'));
+    const keys = telemetry.get(MAC).values.map((v) => v.key);
+    expect(keys).toContain('UptimeSec');
+    expect(keys).toContain('AM2301.Temperature');
   });
 
   it('übernimmt Schaltvorgänge, die nicht von der App ausgelöst wurden', async () => {

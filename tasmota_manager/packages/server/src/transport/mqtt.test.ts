@@ -39,6 +39,16 @@ describe('MqttTransport', () => {
     expect(seen[0]).toMatchObject({ mac: 'AABBCC112233', mqttTopic: 'keller', fullTopic: '%prefix%/%topic%/' });
   });
 
+  it('meldet SENSOR-Telemetrie mit Topic und Nutzlast', async () => {
+    const seen: Array<[string, unknown]> = [];
+    mqtt.on('sensor', (topic, payload) => seen.push([topic, payload]));
+    const f = await fake({ sensors: { AM2301: { Temperature: 21 } } });
+    await mqtt.watch({ topic: 'keller', fullTopic: null });
+    await f.publishSensor();
+    await waitFor(() => seen.length === 1);
+    expect(seen[0]).toMatchObject(['keller', { AM2301: { Temperature: 21 } }]);
+  });
+
   it('sendet Befehle und liefert die Antwort', async () => {
     await fake();
     const target = { topic: 'keller', fullTopic: null };

@@ -221,6 +221,11 @@ export class FakeTasmota {
     await this.client?.publishAsync(`${tele}STATE`, JSON.stringify({ UptimeSec: 200, Wifi: { Signal: -55 }, POWER: this.values.POWER }));
   }
 
+  async publishSensor(): Promise<void> {
+    const tele = buildTopic(this.fullTopic, 'tele', this.topic);
+    await this.client?.publishAsync(`${tele}SENSOR`, JSON.stringify({ Time: '2026-09-29T12:00:00', ...this.opts.sensors }));
+  }
+
   /** Schaltet wie ein Tastendruck am Gerät und meldet das Ergebnis per MQTT. */
   async pressButton(): Promise<void> {
     this.values.POWER = this.values.POWER === 'ON' ? 'OFF' : 'ON';
