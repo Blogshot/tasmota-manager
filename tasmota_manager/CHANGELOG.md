@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.4.1
+## 0.5.0
 
+- Remove several devices at once: select them in the table and click "Remove". Only the entries in the app are removed; nothing changes on the devices.
+- Devices that Home Assistant does not know and that have not been seen for more than 7 days are marked as "stale", and the status filter can show only those, so leftovers and duplicates are easy to clean up.
 - Device details: empty settings fields now show the device's current value instead of "unchanged". Values that are not part of the stored status are read from the device, with a small loading spinner while that happens. Leaving a field empty still means "don't change".
 
 ## 0.4.0

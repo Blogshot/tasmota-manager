@@ -59,6 +59,8 @@ export const DeviceSchema = z.object({
   ha: HaLinkSchema.nullable(),
   nameSuggestion: z.string().nullable(),
   suggestionDismissed: z.boolean(),
+  /** Nicht in Home Assistant und seit über 7 Tagen nicht gesehen (nur bei bestehender HA-Verbindung). */
+  stale: z.boolean(),
   pendingCount: z.number(),
   pendingName: z.string().nullable(),
 });

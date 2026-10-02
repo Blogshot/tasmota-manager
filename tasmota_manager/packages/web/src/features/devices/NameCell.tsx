@@ -76,6 +76,11 @@ export function NameCell({ device }: { device: Device }) {
           </button>
         </span>
       )}
+      {device.stale && (
+        <Badge variant="outline" title={t('devices.staleTitle')} className="text-muted-foreground">
+          {t('devices.stale')}
+        </Badge>
+      )}
       {device.setOption4 && (
         <Badge variant="outline" title={t('devices.so4')}>
           SO4

@@ -290,6 +290,7 @@ function toDevice(row: DeviceRow, tagNames: string[]): Device {
     ha: null,
     nameSuggestion: null,
     suggestionDismissed: row.suggestionDismissed,
+    stale: false,
     pendingCount: 0,
     pendingName: null,
   };

@@ -6,7 +6,12 @@ import type { DeviceRegistry } from './registry';
 
 export interface HaLookup {
   link(mac: string): HaLink | null;
+  /** Verbunden und Registry mindestens einmal geladen; erst dann ist „nicht in HA“ aussagekräftig. */
+  readonly ready?: boolean;
+  readonly linksLoaded?: boolean;
 }
+
+const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Ergänzt die Registry-Geräte um HA-Links, Namensvorschläge und Pufferstatus. */
 export class DeviceEnricher {
@@ -16,6 +21,7 @@ export class DeviceEnricher {
     private readonly ha: HaLookup | null,
     /** Sprache der Namensvorschläge */
     private readonly language: () => Language = () => 'en',
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   all(): Device[] {
@@ -46,12 +52,19 @@ export class DeviceEnricher {
       return {
         ...d,
         capabilities: capabilitiesOf(raw.get(d.id)?.statusJson, raw.get(d.id)?.sensorsJson, d.module),
+        stale: this.isStale(d, links.get(d.id) ?? null),
         ha: links.get(d.id) ?? null,
         pendingCount: counts.get(d.id) ?? 0,
         pendingName,
         nameSuggestion: pendingName || suggestion === d.name ? null : suggestion,
       };
     });
+  }
+
+  private isStale(device: Device, link: HaLink | null): boolean {
+    if (!this.ha?.ready || !this.ha.linksLoaded || link !== null || device.online) return false;
+    const seen = device.lastSeen ? Date.parse(device.lastSeen) : Number.NaN;
+    return !Number.isFinite(seen) || this.now().getTime() - seen > STALE_AFTER_MS;
   }
 
   one(id: string): Device | null {

@@ -29,6 +29,7 @@ export function makeDevice(partial: Partial<Device> = {}): Device {
     ha: null,
     nameSuggestion: null,
     suggestionDismissed: false,
+    stale: false,
     pendingCount: 0,
     pendingName: null,
     ...partial,

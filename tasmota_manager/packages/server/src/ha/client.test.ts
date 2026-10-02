@@ -75,9 +75,11 @@ describe('HaClient', () => {
     ha = await new FakeHa(data()).start();
     client = new HaClient({ url: ha.url, token: 'geheim' }, silentLogger, { debounceMs: 20 });
     expect(client.language).toBeNull();
+    expect(client.linksLoaded).toBe(false);
     client.start();
     await waitFor(() => client?.link('AABBCC112233'));
     expect(client.language).toBe('de');
+    expect(client.linksLoaded).toBe(true);
     expect(client.location).toEqual({ latitude: 52.52, longitude: 13.405 });
     expect(client.config).toEqual({ timeZone: 'Europe/Berlin', country: 'DE', fahrenheit: false });
   });

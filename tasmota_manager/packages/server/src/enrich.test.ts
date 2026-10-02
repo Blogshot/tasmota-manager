@@ -65,4 +65,27 @@ describe('DeviceEnricher', () => {
     const enricher = new DeviceEnricher(registry, store, { link: () => link }, () => 'de');
     expect(enricher.one('AABBCC000001')?.nameSuggestion).toBe('Schalter');
   });
+
+  it('markiert Geräte als veraltet, die HA nicht kennt und die seit über 7 Tagen offline sind', () => {
+    const db = testDb();
+    const registry = new DeviceRegistry(db, () => new Date('2026-09-20T12:00:00Z'));
+    const store = new PendingStore(db, registry);
+    for (const mac of ['AABBCC000001', 'AABBCC000002', 'AABBCC000003']) {
+      registry.upsert({ mac, name: mac }, { channel: 'http' });
+      registry.updateRuntime(mac, {});
+    }
+    registry.markUnreachable('AABBCC000001', 'http'); // offline, nicht in HA → veraltet
+    registry.markUnreachable('AABBCC000002', 'http'); // offline, aber in HA → nicht veraltet
+    // AABBCC000003 ist online → nicht veraltet
+    const link: HaLink = { deviceId: 'dev2', areaName: null, nameByUser: null, entities: [], automations: [] };
+    const ha = { ready: true, linksLoaded: true, link: (mac: string) => (mac === 'AABBCC000002' ? link : null) };
+    const now = () => new Date('2026-10-02T12:00:00Z');
+    const stale = (e: DeviceEnricher) => e.all().filter((d) => d.stale).map((d) => d.id);
+    expect(stale(new DeviceEnricher(registry, store, ha, () => 'de', now))).toEqual(['AABBCC000001']);
+    // Ohne HA-Verbindung lässt sich „nicht in HA“ nicht beurteilen.
+    expect(stale(new DeviceEnricher(registry, store, { ...ha, ready: false }, () => 'de', now))).toEqual([]);
+    expect(stale(new DeviceEnricher(registry, store, null, () => 'de', now))).toEqual([]);
+    // Erst nach 7 Tagen.
+    expect(stale(new DeviceEnricher(registry, store, ha, () => 'de', () => new Date('2026-09-25T12:00:00Z')))).toEqual([]);
+  });
 });

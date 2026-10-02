@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RowSelectionState } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
@@ -26,6 +27,20 @@ export function DevicesPage() {
   const visible = useMemo(() => filterDevices(devices, { text, status, tag }), [devices, text, status, tag]);
   const selected = devices.filter((d) => rowSelection[d.id]);
   const selectedCount = selected.length;
+  const qc = useQueryClient();
+  // Entfernt nur Einträge in der App; an den Geräten ändert sich nichts.
+  const remove = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(ids.map((id) => api.removeDevice(id)));
+      return results.filter((r) => r.status === 'fulfilled').length;
+    },
+    onSuccess: (count) => {
+      toast.success(t('devices.removed', { count }));
+      setRowSelection({});
+      void qc.invalidateQueries({ queryKey: ['devices'] });
+      void qc.invalidateQueries({ queryKey: ['changes'] });
+    },
+  });
 
   return (
     <div className="space-y-4">
@@ -52,6 +67,7 @@ export function DevicesPage() {
           <option value="online">{t('devices.filter.online')}</option>
           <option value="offline">{t('devices.filter.offline')}</option>
           <option value="auth">{t('devices.filter.auth')}</option>
+          <option value="stale">{t('devices.filter.stale')}</option>
         </select>
         <select aria-label={t('devices.filter.tag')} className={selectClass} value={tag} onChange={(e) => setTag(e.target.value)}>
           <option value="">{t('devices.filter.allTags')}</option>
@@ -66,6 +82,15 @@ export function DevicesPage() {
         <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 text-sm">
           <span>{t('devices.selected', { count: selectedCount })}</span>
           <EditMenu devices={selected} />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            disabled={remove.isPending}
+            onClick={() => window.confirm(t('devices.removeSelectedConfirm', { count: selectedCount })) && remove.mutate(selected.map((d) => d.id))}
+          >
+            {t('devices.removeSelected')}
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setRowSelection({})}>
             {t('devices.clearSelection')}
           </Button>

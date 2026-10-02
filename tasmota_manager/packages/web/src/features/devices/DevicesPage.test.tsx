@@ -13,6 +13,7 @@ vi.mock('@/lib/api', () => ({
     status: vi.fn(),
     scan: vi.fn(),
     addDevice: vi.fn(),
+    removeDevice: vi.fn(),
   },
   ApiError: class extends Error {},
 }));
@@ -63,5 +64,26 @@ describe('DevicesPage', () => {
     vi.mocked(api.devices).mockResolvedValue([]);
     renderWithProviders(<DevicesPage />);
     expect(await screen.findByText(/Noch keine Geräte gefunden/)).toBeInTheDocument();
+  });
+
+  it('entfernt mehrere ausgewählte Geräte nach Rückfrage', async () => {
+    vi.mocked(api.removeDevice).mockResolvedValue(undefined);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+    renderWithProviders(<DevicesPage />);
+    await screen.findByText('Keller-Licht');
+    const rows = screen.getAllByRole('checkbox', { name: 'Zeile auswählen' });
+    await user.click(rows[0] as HTMLElement);
+    await user.click(rows[1] as HTMLElement);
+    await user.click(screen.getByRole('button', { name: 'Entfernen' }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('2 Geräte'));
+    await waitFor(() => expect(api.removeDevice).toHaveBeenCalledTimes(2));
+    confirm.mockRestore();
+  });
+
+  it('zeigt veraltete Geräte gekennzeichnet', async () => {
+    vi.mocked(api.devices).mockResolvedValue([makeDevice({ id: 'S', name: 'Alt', online: false, stale: true })]);
+    renderWithProviders(<DevicesPage />);
+    expect(await screen.findByText('veraltet')).toHaveAttribute('title', 'Nicht in Home Assistant und seit über 7 Tagen nicht gesehen');
   });
 });

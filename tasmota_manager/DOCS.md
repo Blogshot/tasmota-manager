@@ -11,6 +11,10 @@ Verwaltet alle Tasmota-Geräte im Netzwerk über eine moderne Oberfläche in der
 
 Geräte mit Relais oder Licht zeigen in der Spalte **Schalten** pro Ausgang einen Button mit dem aktuellen Zustand. Ein Klick schaltet sofort um. Das ist die einzige Aktion in der Tabelle, die nicht vorgemerkt wird. Bei MQTT-Geräten folgt die Anzeige auch Schaltvorgängen am Gerät oder in Home Assistant; bei reinen HTTP-Geräten erst beim nächsten Abfrageintervall.
 
+## Geräte aufräumen
+
+Die Geräteliste ist das eigene Inventar der App; sie wird nicht mit Home Assistant abgeglichen. Geräte, die Home Assistant nicht kennt und die seit über 7 Tagen nicht gesehen wurden, tragen das Kennzeichen **veraltet**, und der Statusfilter „Veraltet“ zeigt nur diese. Zum Entfernen mehrere Geräte in der Tabelle auswählen und **Entfernen** wählen, oder einzeln in der Detailansicht. Entfernt wird nur der Eintrag in der App. Kommt ein Gerät per MQTT-Discovery wieder, liegt auf dem Broker noch seine zurückgehaltene Discovery-Nachricht (`tasmota/discovery/<MAC>/config`).
+
 ## Passwörter
 
 Haben Geräte ein Web-Passwort, hinterlege ein globales Passwort in den Einstellungen. Weicht ein einzelnes Gerät davon ab, setzt du das Passwort in der Detailansicht des Geräts. Geräte, die ein Passwort verlangen, erscheinen mit dem Status „Passwort erforderlich“.

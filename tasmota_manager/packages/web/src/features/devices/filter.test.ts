@@ -21,6 +21,13 @@ describe('filterDevices', () => {
   });
 });
 
+describe('filterDevices (veraltet)', () => {
+  it('zeigt mit dem Filter „veraltet“ nur veraltete Geräte', () => {
+    const list = [makeDevice({ id: 'A', stale: true }), makeDevice({ id: 'B' })];
+    expect(filterDevices(list, { text: '', status: 'stale', tag: '' }).map((d) => d.id)).toEqual(['A']);
+  });
+});
+
 describe('formatUptime', () => {
   it('formatiert Tage, Stunden und Minuten', () => {
     expect(formatUptime(93_784)).toBe('1d 2h 3m');

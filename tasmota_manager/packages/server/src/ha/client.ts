@@ -67,6 +67,8 @@ const isPrimary = (e: RegistryEntity): boolean => !e.entity_category && !e.disab
 /** Liest Geräte, Entitäten, Bereiche und Automationen über den HA-WebSocket; Daten nur im Speicher. */
 export class HaClient extends EventEmitter<{ changed: [] }> {
   ready = false;
+  /** Mindestens einmal vollständig geladen; erst dann ist „nicht in HA“ aussagekräftig. */
+  linksLoaded = false;
   /** Systemsprache von Home Assistant (z. B. "de"); null, solange sie nicht gelesen wurde. */
   language: string | null = null;
   /** Zeitzone, Land und Einheit aus der HA-Konfiguration; null, solange unbekannt. */
@@ -168,6 +170,7 @@ export class HaClient extends EventEmitter<{ changed: [] }> {
       this.location = { latitude, longitude };
     }
     this.links = next;
+    this.linksLoaded = true;
     this.emit('changed');
   }
 
