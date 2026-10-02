@@ -1,4 +1,4 @@
-import type { CommandResult, Device, DeviceDetail, DeviceUpdateRequest, FastRulePreview, JobView, PendingDevice, RuleState, Settings, SettingsUpdateRequest, SettingValue, StageRequest, StageResult, StatusResponse, TimersState } from '@tm/shared';
+import type { CommandResult, Device, DeviceDetail, DeviceTelemetry, DeviceUpdateRequest, FastRulePreview, JobView, PendingDevice, RuleState, Settings, SettingsUpdateRequest, SettingValue, StageRequest, StageResult, StatusResponse, TelemetrySummary, TimersState } from '@tm/shared';
 
 export class ApiError extends Error {
   constructor(
@@ -49,6 +49,8 @@ export const api = {
   apply: (deviceIds?: string[]) => request<JobView>('changes/apply', json('POST', deviceIds ? { deviceIds } : {})),
   currentJob: () => request<{ job: JobView | null }>('jobs/current'),
   rules: (id: string) => request<RuleState[]>(`${deviceUrl(id)}/rules`),
+  telemetry: (id: string, refresh = false) => request<DeviceTelemetry>(`${deviceUrl(id)}/telemetry${refresh ? '?refresh=1' : ''}`),
+  telemetrySummary: () => request<TelemetrySummary>('telemetry'),
   timers: (id: string) => request<TimersState>(`${deviceUrl(id)}/timers`),
   setting: (id: string, key: string) => request<SettingValue>(`${deviceUrl(id)}/settings/${encodeURIComponent(key)}`),
 };

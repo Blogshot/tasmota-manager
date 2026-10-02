@@ -1,5 +1,5 @@
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
-import type { Device, JobView, StatusResponse, WsMessage } from '@tm/shared';
+import type { Device, JobView, StatusResponse, TelemetrySummary, WsMessage } from '@tm/shared';
 import { useEffect } from 'react';
 
 export function applyMessage(qc: QueryClient, msg: WsMessage): void {
@@ -48,6 +48,10 @@ export function applyMessage(qc: QueryClient, msg: WsMessage): void {
       });
       break;
     }
+    case 'telemetry':
+      qc.setQueryData<TelemetrySummary>(['telemetry-summary'], (s) => ({ ...(s ?? {}), [msg.deviceId]: msg.headline }));
+      void qc.invalidateQueries({ queryKey: ['telemetry', msg.deviceId] });
+      break;
     case 'job:done':
       qc.setQueryData(['job'], { job: msg.job });
       void qc.invalidateQueries({ queryKey: ['changes'] });

@@ -85,6 +85,7 @@ export const es: Record<MessageKey, string> = {
   'mqtt.connected': 'Conectado al broker MQTT.',
   'mqtt.disconnected': 'Broker MQTT inaccesible. Los dispositivos se contactan por HTTP.',
   'nav.pending': 'Pendiente',
+  'devices.col.telemetry': 'Mediciones',
   'devices.col.power': 'Conmutar',
   'devices.power.on': 'La salida {n} está encendida: clic para apagar',
   'devices.power.off': 'La salida {n} está apagada: clic para encender',

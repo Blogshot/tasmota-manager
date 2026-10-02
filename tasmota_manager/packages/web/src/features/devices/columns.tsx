@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useT } from '@/lib/i18n';
+import { TelemetryCell } from '../telemetry/TelemetryCell';
 import { formatUptime } from './format';
 import { HaAutomationLinks, HaEntityLinks } from './HaLinks';
 import { NameCell } from './NameCell';
@@ -44,6 +45,7 @@ export function useDeviceColumns(): ColumnDef<Device>[] {
         accessorFn: (d) => d.power.filter(Boolean).length,
         cell: ({ row }) => <PowerCell device={row.original} />,
       },
+      { id: 'telemetry', header: t('devices.col.telemetry'), enableSorting: false, cell: ({ row }) => <TelemetryCell deviceId={row.original.id} /> },
       {
         accessorKey: 'ip',
         header: t('devices.col.ip'),

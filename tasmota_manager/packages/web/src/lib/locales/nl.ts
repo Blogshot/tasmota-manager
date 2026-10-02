@@ -85,6 +85,7 @@ export const nl: Record<MessageKey, string> = {
   'mqtt.connected': 'Verbonden met de MQTT-broker.',
   'mqtt.disconnected': 'MQTT-broker niet bereikbaar. Apparaten worden via HTTP benaderd.',
   'nav.pending': 'In afwachting',
+  'devices.col.telemetry': 'Metingen',
   'devices.col.power': 'Schakelen',
   'devices.power.on': 'Uitgang {n} is aan – klik om uit te schakelen',
   'devices.power.off': 'Uitgang {n} is uit – klik om in te schakelen',
