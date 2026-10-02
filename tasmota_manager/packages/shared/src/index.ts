@@ -167,6 +167,22 @@ export interface HaSuggestions {
   fahrenheit: boolean | null;
 }
 
+export interface TelemetryValue {
+  key: string;
+  group: string;
+  name: string;
+  value: number | string;
+  unit: string | null;
+}
+
+export interface DeviceTelemetry {
+  updatedAt: string | null;
+  values: TelemetryValue[];
+  history: Record<string, Array<[number, number]>>;
+}
+
+export type TelemetrySummary = Record<string, TelemetryValue[]>;
+
 export interface StatusResponse {
   mqtt: MqttStatus;
   version: string;
@@ -191,7 +207,8 @@ export type WsMessage =
   | { type: 'scan:done'; found: number }
   | { type: 'changes:updated'; count: number }
   | { type: 'job:progress'; jobId: number; item: JobItem }
-  | { type: 'job:done'; job: JobView };
+  | { type: 'job:done'; job: JobView }
+  | { type: 'telemetry'; deviceId: string; updatedAt: string; headline: TelemetryValue[] };
 
 export interface ApiErrorBody {
   code: string;
