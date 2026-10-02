@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/api';
+import { applyMessage } from '@/lib/live';
 import { makeDevice } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
 import { TelemetryTab } from './TelemetryTab';
@@ -51,6 +52,17 @@ describe('TelemetryTab', () => {
     renderWithProviders(<TelemetryTab device={makeDevice({ id: 'B', channels: ['mqtt'] })} />);
     await screen.findByText('AM2301');
     expect(api.telemetry).toHaveBeenCalledWith('B', false);
+  });
+
+  it('fragt bei HTTP-Geräten nach einem WS-Ereignis nicht erneut ab', async () => {
+    vi.mocked(api.telemetry).mockResolvedValue(sample());
+    const { queryClient } = renderWithProviders(<TelemetryTab device={makeDevice({ id: 'A', channels: ['http'] })} />);
+    await screen.findByText('AM2301');
+    expect(api.telemetry).toHaveBeenCalledTimes(1);
+    applyMessage(queryClient, { type: 'telemetry', deviceId: 'A', updatedAt: new Date().toISOString(), headline: [] });
+    applyMessage(queryClient, { type: 'telemetry', deviceId: 'A', updatedAt: new Date().toISOString(), headline: [] });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(api.telemetry).toHaveBeenCalledTimes(1);
   });
 
   it('zeigt bei Offline-Geräten einen Hinweis', async () => {

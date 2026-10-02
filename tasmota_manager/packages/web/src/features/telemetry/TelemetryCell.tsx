@@ -11,7 +11,7 @@ export function useTelemetrySummary() {
 }
 
 function ChartFor({ deviceId, value }: { deviceId: string; value: TelemetryValue }) {
-  const { data } = useQuery({ queryKey: ['telemetry', deviceId], queryFn: () => api.telemetry(deviceId) });
+  const { data } = useQuery({ queryKey: ['telemetry', deviceId, 'live'], queryFn: () => api.telemetry(deviceId) });
   return <HistoryChart points={data?.history[value.key] ?? []} unit={value.unit} label={value.name} />;
 }
 

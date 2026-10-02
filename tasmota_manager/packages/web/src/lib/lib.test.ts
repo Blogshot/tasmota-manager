@@ -64,6 +64,17 @@ describe('applyMessage', () => {
     applyMessage(qc, { type: 'job:done', job: { ...job, status: 'done' } });
     expect(qc.getQueryData<{ job: JobView }>(['job'])?.job.status).toBe('done');
   });
+
+  it('aktualisiert bei Telemetrie die Übersicht und invalidiert nur die Live-Abfrage', () => {
+    const qc = new QueryClient();
+    qc.setQueryData(['telemetry', 'A', 'live'], { updatedAt: null, values: [], history: {} });
+    qc.setQueryData(['telemetry', 'A', 'poll'], { updatedAt: null, values: [], history: {} });
+    const headline = [{ key: 'ENERGY.Power', group: 'ENERGY', name: 'Power', value: 5, unit: 'W' }];
+    applyMessage(qc, { type: 'telemetry', deviceId: 'A', updatedAt: 'x', headline });
+    expect(qc.getQueryData(['telemetry-summary'])).toEqual({ A: headline });
+    expect(qc.getQueryState(['telemetry', 'A', 'live'])?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(['telemetry', 'A', 'poll'])?.isInvalidated).toBe(false);
+  });
 });
 
 describe('readHaContext', () => {

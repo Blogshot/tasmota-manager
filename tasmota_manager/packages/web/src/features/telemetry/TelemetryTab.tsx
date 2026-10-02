@@ -33,7 +33,9 @@ export function TelemetryTab({ device }: { device: Device }) {
   const lang = useLang();
   const httpOnly = !device.channels.includes('mqtt');
   const { data } = useQuery({
-    queryKey: ['telemetry', device.id],
+    // Eigener Schlüssel für die HTTP-Auffrischung: WS-Ereignisse invalidieren nur ['telemetry', id, 'live'],
+    // sonst würde jede Antwort (die serverseitig Ereignisse auslöst) sofort die nächste Abfrage starten.
+    queryKey: ['telemetry', device.id, httpOnly ? 'poll' : 'live'],
     queryFn: () => api.telemetry(device.id, httpOnly),
     refetchInterval: httpOnly ? 10_000 : false,
   });

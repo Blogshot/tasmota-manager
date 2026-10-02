@@ -50,7 +50,7 @@ export function applyMessage(qc: QueryClient, msg: WsMessage): void {
     }
     case 'telemetry':
       qc.setQueryData<TelemetrySummary>(['telemetry-summary'], (s) => ({ ...(s ?? {}), [msg.deviceId]: msg.headline }));
-      void qc.invalidateQueries({ queryKey: ['telemetry', msg.deviceId] });
+      void qc.invalidateQueries({ queryKey: ['telemetry', msg.deviceId, 'live'] });
       break;
     case 'job:done':
       qc.setQueryData(['job'], { job: msg.job });
