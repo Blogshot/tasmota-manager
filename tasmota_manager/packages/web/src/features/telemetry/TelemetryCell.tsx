@@ -23,21 +23,29 @@ export function TelemetryCell({ deviceId }: { deviceId: string }) {
   if (values.length === 0) return <>—</>;
   return (
     <div className="flex flex-wrap items-center gap-x-1">
-      {values.map((value, index) => (
-        <Fragment key={value.key}>
-          {index > 0 && <span className="text-muted-foreground">·</span>}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button type="button" onClick={(e) => e.stopPropagation()} className="rounded px-0.5 whitespace-nowrap underline-offset-2 hover:underline">
-                {formatTelemetry(value.value, value.unit, lang)}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent onClick={(e) => e.stopPropagation()}>
-              <ChartFor deviceId={deviceId} value={value} />
-            </PopoverContent>
-          </Popover>
-        </Fragment>
-      ))}
+      {values.map((value, index) => {
+        const text = formatTelemetry(value.value, value.unit, lang);
+        return (
+          <Fragment key={value.key}>
+            {index > 0 && <span className="text-muted-foreground">·</span>}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${value.name}: ${text}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded px-0.5 whitespace-nowrap underline-offset-2 hover:underline"
+                >
+                  {text}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent onClick={(e) => e.stopPropagation()}>
+                <ChartFor deviceId={deviceId} value={value} />
+              </PopoverContent>
+            </Popover>
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

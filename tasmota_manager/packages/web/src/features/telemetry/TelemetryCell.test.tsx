@@ -28,7 +28,7 @@ describe('TelemetryCell', () => {
         <TelemetryCell deviceId="A" />
       </div>,
     );
-    const button = await screen.findByRole('button', { name: '12,3 W' });
+    const button = await screen.findByRole('button', { name: 'Power: 12,3 W' });
     await user.click(button);
     expect(await screen.findByRole('img', { name: 'Power' })).toBeInTheDocument();
     expect(api.telemetry).toHaveBeenCalledWith('A');
