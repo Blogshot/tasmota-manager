@@ -14,6 +14,7 @@ import { Console } from './Console';
 import { RulesTab } from './detail/RulesTab';
 import { SettingsTab } from './detail/SettingsTab';
 import { TimersTab } from './detail/TimersTab';
+import { TelemetryTab } from '../telemetry/TelemetryTab';
 import { StatusDot } from './StatusDot';
 
 interface Props {
@@ -87,6 +88,7 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList className="flex-wrap">
           <TabsTrigger value="info">{t('detail.tab.info')}</TabsTrigger>
+          <TabsTrigger value="telemetry">{t('detail.tab.telemetry')}</TabsTrigger>
           <TabsTrigger value="settings">{t('detail.tab.settings')}</TabsTrigger>
           <TabsTrigger value="rules">{t('detail.tab.rules')}</TabsTrigger>
           <TabsTrigger value="timers">{t('detail.tab.timers')}</TabsTrigger>
@@ -135,6 +137,9 @@ function DeviceDetail({ deviceId, onClose, onSwitch }: { deviceId: string; onClo
           >
             {t('detail.remove')}
           </Button>
+        </TabsContent>
+        <TabsContent value="telemetry">
+          <TelemetryTab device={device} />
         </TabsContent>
         <TabsContent value="settings">
           <SettingsTab device={device} status={detail?.status ?? null} />
