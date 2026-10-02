@@ -56,12 +56,19 @@ docker build -t tasmota-manager:dev tasmota_manager   # aus der Repo-Wurzel
 4. Nach Ansage des Nutzers **zuerst nur den Tag** pushen (`git push origin v<Version>`) und die GitHub-Spiegelung auslösen (siehe unten). Der Tag startet auf GitHub den Workflow `.github/workflows/publish.yml`, der die Images `ghcr.io/blogshot/{amd64,aarch64}-tasmota-manager:<Version>` baut. `config.yaml` verweist per `image:` darauf; HA baut die App nicht mehr selbst.
 5. Den Lauf verfolgen: `curl -s -H "Authorization: Bearer $GITHUB_PERSONAL_ACCESS_TOKEN" "https://api.github.com/repos/Blogshot/tasmota-manager/actions/runs?per_page=3"` (Token hat Actions: Read and write; von Hand starten über `POST …/actions/workflows/publish.yml/dispatches` mit `{"ref":"main"}`). Danach prüfen, dass beide Images öffentlich abrufbar sind, z. B. anonym:
    `curl -s "https://ghcr.io/token?scope=repository:blogshot/aarch64-tasmota-manager:pull"` → Token → `curl -s -H "Authorization: Bearer <token>" -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.v2+json,application/vnd.oci.image.manifest.v1+json" https://ghcr.io/v2/blogshot/aarch64-tasmota-manager/manifests/<Version>` muss 200 liefern (für amd64 ebenso). Erst **danach** `main` pushen und erneut spiegeln. So bietet HA nie ein Update an, dessen Image noch fehlt. CI-Ergebnis auf GitHub abwarten und melden.
-6. Release auf GitHub zum Tag anlegen, Titel `Tasmota Manager <Version>`, Text = Changelog-Abschnitt plus Link auf die vollständige `CHANGELOG.md` auf GitHub. GitHub ist die öffentliche Quelle; ein Forgejo-Release sieht niemand außer dem Nutzer. Der GitHub-MCP kann keine Releases anlegen, deshalb über die REST-API mit dem Token aus `$GITHUB_PERSONAL_ACCESS_TOKEN` (fine-grained, Contents: Read and write), ohne ihn auszugeben:
+6. Release zum Tag **in GitHub und in Forgejo** anlegen, in beiden mit gleichem Titel `Tasmota Manager <Version>` und gleichem Text (Changelog-Abschnitt plus Link auf die vollständige `CHANGELOG.md` auf GitHub). Forgejo spiegelt Releases nicht, deshalb beide getrennt anlegen und am Ende prüfen, dass beide Listen dieselben Tags enthalten. Der GitHub-MCP kann keine Releases anlegen, deshalb über die REST-API mit dem Token aus `$GITHUB_PERSONAL_ACCESS_TOKEN` (fine-grained, Contents: Read and write), ohne ihn auszugeben:
 
    ```bash
    curl -s -X POST -H "Authorization: Bearer $GITHUB_PERSONAL_ACCESS_TOKEN" -H "Accept: application/vnd.github+json" \
      --data @release.json https://api.github.com/repos/Blogshot/tasmota-manager/releases
    # release.json: {"tag_name":"v<Version>","name":"Tasmota Manager <Version>","body":"…","make_latest":"true"}
+   ```
+
+   Forgejo mit demselben `release.json` (ohne `make_latest`; Forgejo nimmt das neueste Release als aktuelles) und dem Forgejo-Token (siehe Infrastruktur):
+
+   ```bash
+   curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
+     --data @release.json https://git.knott.ac/api/v1/repos/Sascha/tasmota-manager/releases
    ```
 
    Der Tag muss vorher auf GitHub angekommen sein (Schritt 5). Antwortet GitHub mit 401, läuft Claude Code vermutlich noch mit einem alten Token: Die Sitzung hängt an einem `claude daemon`, der Terminal-Neustarts überlebt. Dann den Nutzer bitten, Claude Code zu beenden, `claude daemon stop --any` auszuführen und neu zu starten.
@@ -78,6 +85,6 @@ docker build -t tasmota-manager:dev tasmota_manager   # aus der Repo-Wurzel
     https://git.knott.ac/api/v1/repos/Sascha/tasmota-manager/push_mirrors-sync
   ```
 
-  Danach prüfen: `curl -s https://api.github.com/repos/Blogshot/tasmota-manager/commits/main` muss den neuen Commit zeigen. Forgejo-Releases werden nicht gespiegelt, nur Commits und Tags.
+  Danach prüfen: `curl -s https://api.github.com/repos/Blogshot/tasmota-manager/commits/main` muss den neuen Commit zeigen. Releases werden nicht gespiegelt, nur Commits und Tags; Releases deshalb in beiden Systemen anlegen (Release-Ablauf, Schritt 6).
 - CI läuft nur auf GitHub: `.github/workflows/ci.yml` (Typecheck, Tests, Build bei jedem Push auf jeden Branch) und `.github/workflows/publish.yml` (bei Release-Tags: erst `ci.yml`, dann die Images). In Forgejo sind Actions für dieses Repo abgeschaltet (`has_actions: false`); sonst würde Forgejo mangels `.forgejo/workflows` die GitHub-Workflows übernehmen und auf Runner warten, die es nicht gibt. Ergebnisse per `curl -s -H "Authorization: Bearer $GITHUB_PERSONAL_ACCESS_TOKEN" "https://api.github.com/repos/Blogshot/tasmota-manager/actions/runs?per_page=5"`.
 - Commit-Trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
