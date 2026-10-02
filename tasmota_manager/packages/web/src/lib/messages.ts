@@ -290,6 +290,12 @@ export const de = {
   'fastRule.omitted': "Nicht enthalten: {blocks}",
   'fastRule.stage': "Regeln vormerken",
   'fastRule.loading': "Regeln werden erstellt …",
+  'telemetry.noHistory': "Noch kein Verlauf",
+  'telemetry.minutesAgo': "−60 min",
+  'telemetry.now': "jetzt",
+  'telemetry.min': "Min",
+  'telemetry.max': "Max",
+  'telemetry.current': "Aktuell",
 } as const;
 
 export type MessageKey = keyof typeof de;
@@ -586,4 +592,10 @@ export const en: Record<MessageKey, string> = {
   'fastRule.omitted': "Not included: {blocks}",
   'fastRule.stage': "Stage rules",
   'fastRule.loading': "Creating rules …",
+  'telemetry.noHistory': "No history yet",
+  'telemetry.minutesAgo': "−60 min",
+  'telemetry.now': "now",
+  'telemetry.min': "Min",
+  'telemetry.max': "Max",
+  'telemetry.current': "Current",
 };

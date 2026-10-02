@@ -39,6 +39,10 @@ export function I18nProvider({ lang, children }: { lang: Lang; children: ReactNo
   return <I18nContext.Provider value={lang}>{children}</I18nContext.Provider>;
 }
 
+export function useLang(): Lang {
+  return useContext(I18nContext);
+}
+
 export function useT(): Translate {
   const lang = useContext(I18nContext);
   return useCallback((key: MessageKey, vars?: Vars) => formatMessage(dictionaries[lang][key], vars), [lang]);

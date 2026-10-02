@@ -292,4 +292,10 @@ export const it: Record<MessageKey, string> = {
   'fastRule.omitted': "Non incluso: {blocks}",
   'fastRule.stage': "Metti le regole in sospeso",
   'fastRule.loading': "Creazione delle regole …",
+  'telemetry.noHistory': "Ancora nessuno storico",
+  'telemetry.minutesAgo': "−60 min",
+  'telemetry.now': "adesso",
+  'telemetry.min': "Min",
+  'telemetry.max': "Max",
+  'telemetry.current': "Attuale",
 };

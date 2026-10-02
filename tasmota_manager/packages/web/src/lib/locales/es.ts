@@ -292,4 +292,10 @@ export const es: Record<MessageKey, string> = {
   'fastRule.omitted': "No incluido: {blocks}",
   'fastRule.stage': "Añadir reglas como pendientes",
   'fastRule.loading': "Creando reglas …",
+  'telemetry.noHistory': "Aún no hay historial",
+  'telemetry.minutesAgo': "−60 min",
+  'telemetry.now': "ahora",
+  'telemetry.min': "Mín",
+  'telemetry.max': "Máx",
+  'telemetry.current': "Actual",
 };

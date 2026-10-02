@@ -292,4 +292,10 @@ export const nl: Record<MessageKey, string> = {
   'fastRule.omitted': "Niet opgenomen: {blocks}",
   'fastRule.stage': "Regels klaarzetten",
   'fastRule.loading': "Regels worden gemaakt …",
+  'telemetry.noHistory': "Nog geen verloop",
+  'telemetry.minutesAgo': "−60 min",
+  'telemetry.now': "nu",
+  'telemetry.min': "Min",
+  'telemetry.max': "Max",
+  'telemetry.current': "Actueel",
 };
